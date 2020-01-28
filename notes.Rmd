@@ -1,0 +1,20 @@
+---
+title: "Notes"
+author: "Anne-Marie Parkinson"
+date: "January 27, 2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+started off with >21,000 polygons. 
+
+removed some outside of the CA boundary. Removed some that mostly burned in other states. 
+removed stands under 10 acres
+
+can look at acres burned/yr
+number of fire incidents/yr
+
+large wildfire considered >405ha (1000 acres) by https://agupubs.onlinelibrary.wiley.com/doi/full/10.1002/2014gl059576

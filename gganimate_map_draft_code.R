@@ -14,8 +14,8 @@ library(lwgeom)
 
 # load data ---------------------------------------------------------
 
-ca_border <-  read_sf(here("Arc_data", "ca_state_border"), layer = "CA_State_TIGER2016")
-fire <- read_sf(here("Arc_data", "fire_perimeter_shpfile"), layer = "fire_perimeters" ) # still need to remove fires outisde of CA, even though those fires are listed as being in CA but visually are outside of the state boundaries
+ca_border <-  read_sf(here::here("Arc_data", "ca_state_border"), layer = "CA_State_TIGER2016")
+fire <- read_sf(here::here("Arc_data", "fire_perimeter_shpfile"), layer = "fire_perimeters" ) # still need to remove fires outisde of CA, even though those fires are listed as being in CA but visually are outside of the state boundaries
 fire <- fire %>% lwgeom::st_make_valid() %>% sf::st_collection_extract()
 plot(fire)
 # clean data --------------------------------------------------------------
@@ -44,5 +44,7 @@ fire <- fire %>%
 
 # if (alarm_month = cont_month, then mutate(length_of_fire = (cont_day - alarm_day)(+1??))), else
 
+# check to see if plot works with smaller subset
 
-
+sub_fires <- fire %>% filter (Acres > 1000)
+plot(sub_fires, max.plot = 19)
