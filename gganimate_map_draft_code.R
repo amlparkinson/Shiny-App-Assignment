@@ -16,15 +16,19 @@ library(lwgeom)
 
 ca_border <-  read_sf(here::here("Arc_data", "ca_state_border"), layer = "CA_State_TIGER2016")
 fire <- read_sf(here::here("Arc_data", "fire_perimeter_shpfile"), layer = "fire_perimeters" ) # still need to remove fires outisde of CA, even though those fires are listed as being in CA but visually are outside of the state boundaries
-fire <- fire %>% lwgeom::st_make_valid() %>% sf::st_collection_extract()
-plot(fire)
+
 # clean data --------------------------------------------------------------
 
 fire <- fire %>% 
   clean_names() %>% 
-  mutate (fire_name = str_to_title(fire_name)) %>%   #str_to_title converts observations to first letter capitalized other letters lowercase
-  dplyr::select(-comments, -agency, -unit_id, -state, -inc_num, -shape_length)
-  
+  lwgeom::st_make_valid() %>% 
+  sf::st_collection_extract() %>% 
+  mutate (fire_name = str_to_title(fire_name)) #str_to_title converts observations to first letter capitalized other letters lowercase
+
+# small sample of main data set to use to creat the code so r wont freeze as often---------------------
+
+fire2 <- fire %>% dplyr::filter (acres > 200)
+
 # parse dates and calculate how many days the fire burned -----------------------------------   
 
 fire <- fire %>% 
@@ -39,12 +43,103 @@ fire <- fire %>%
   mutate (length_of_fires = (cont_day_of_year - alarm_day_of_year)) # doesnt account for fires that stated in one year, but ended in another
 
 #there's many missing dates. deal with this later
-
-
-
 # if (alarm_month = cont_month, then mutate(length_of_fire = (cont_day - alarm_day)(+1??))), else
 
-# check to see if plot works with smaller subset
+  fire_yearly_data <- fire2 %>% 
+    drop_na(year) %>% 
+    mutate (decade = case_when(
+      year < 1900 ~ "pre-1900",
+      year < 1909 ~ "1900s",
+      year < 1919 ~ "1910s",
+      year < 1929 ~ "1920s",
+      year < 1939 ~ "1930s",
+      year < 1949 ~ "1940s",
+      year < 1959 ~ "1950s",
+      year < 1969 ~ "1960s",
+      year < 1979 ~ "1970s",
+      year < 1989 ~ "1980s",
+      year < 1999 ~ "1990s",
+      year < 2009 ~ "2000s",
+      year < 2019 ~ "2010s"
+    ))
+  # 77 fires had no year recorded
+  
+# gganimate -------------------------------------------------------------------------------------
 
-sub_fires <- fire %>% filter (Acres > 1000)
-plot(sub_fires, max.plot = 19)
+ggplot() +
+    geom_sf(data = fire_yearly_data) # not working. Error: stat_sf requires the following missing aesthetics: geometry
+
+# count things ------------------------------------------------
+
+decade_fires <- fire_yearly_data %>% 
+  group_by(decade) %>% 
+  count()
+
+yearly_fires <- fire_yearly_data %>% 
+  group_by(year) %>% 
+  count()
+
+# fire causes ---------------------------------------------------------------
+
+#sub-data
+fire_causes <- fire2 %>%
+  mutate(fire_cause = case_when(
+    cause == 0 ~ "Unknown",
+    cause == 1 ~ "Lightning",
+    cause == 2 ~ "Equipment Use",
+    cause == 3 ~ "Smoking",
+    cause == 4 ~ "Campfire",
+    cause == 5 ~ "Debris",
+    cause == 6 ~ "Railroad",
+    cause == 7 ~ "Arson",
+    cause == 8 ~ "Playing with Fire",
+    cause == 9 ~ "Miscellaneous",
+    cause == 10 ~ "Vehicle",
+    cause == 11 ~ "Powerline",
+    cause == 12 ~ "Firefighting Training",
+    cause == 13 ~ "Non-firefighting Training",
+    cause == 14 ~ "Unknown",
+    cause == 15 ~ "Structure",
+    cause == 16 ~ "Aircraft",
+    cause == 17 ~ "Volcanic",
+    cause == 18 ~ "Escaped Prescribed Burn",
+    cause == 19 ~ "Illegal Campfire"
+  )) %>% 
+  mutate (fire_cause_simplified = case_when(
+    fire_cause %in% c("Lightning", "Volcanic") ~ "Natural Cause",
+    fire_cause %in% c('Equipment Use','Smoking','Campfire','Debris','Railroad','Arson','Playing with Fire',
+                      'Miscellaneous','Vehicle','Powerline','Firefighting Training','Non-firefighting Training',
+                      'Structure', 'Aircraft', 'Escaped Prescribed Burn', 'Illegal Campfire') ~ "Human Cause",
+    fire_cause == "Unknown" ~ "Unknown"
+  )) %>% 
+  st_make_valid()
+
+
+# count 
+fire_causes_simplified_count <- fire_causes %>% 
+  group_by(fire_cause_simplified) %>% 
+  count()
+
+# kable extra
+fire_causes_simplified_count %>% 
+  kable(col.names = c("Cause", "Count"), align = 'c') %>% 
+  kable_styling(
+    bootstrap_options = c("striped", "hover", "condensed", "respsonsive"),
+    full_width = T,
+    position = "center"
+  )
+  
+  
+
+# graph
+ggplot(data = fire_causes, aes(x = fire_cause)) +
+  geom_bar(fill = "dark red") +
+  coord_flip() +
+  labs (x = NULL,
+        y = NULL,
+        title = 'TBD') +
+  theme_bw() +
+  scale_y_continuous(expand=c(0,0)) +
+  scale_x_discrete(expand=c(0,0)) 
+  #geom_text(aes(label = ))) # is there a way to add label over the bars to display their count? maybe can do this when have reactive data? maybe can set up the data frame to be based off of a table and can use the count from there
+  
