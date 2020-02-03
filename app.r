@@ -10,8 +10,6 @@ library(sf)
 library(gganimate)
 library(transformr) #need?
 library(magick) #need?
-library(here)
-library(raster) #need?
 library(tmap)
 library(lubridate)
 library(dplyr)
@@ -62,7 +60,7 @@ fire_causes <- fire %>%
     fire_cause == "Unknown" ~ "Unknown"
   )) %>% 
   st_make_valid() %>% 
-  mutate(year = as.numeric(year)) %>% 
+  mutate(year = as.character(year)) %>% 
   drop_na(year)
 
 # user interface ---------------------------------------------------------
@@ -84,11 +82,12 @@ ui <- dashboardPage(
               checkboxGroupInput(inputId = "check_fire_causes",
                                  label = "Select Fire Cause(s) to explore:",
                                  choices = c(unique(fire_causes$fire_cause)))),
-          box(plotOutput(outputId = "fire_causes_graph")),
           box(title = "title",
-              sliderInput(inputId = "date_fire_causes",
+              dateRangeInput(inputId = "date_fire_causes",
                          label = "Input Year(s)",
-                         min = 1890, max = 2019, value = c(10, 20)))
+                         start = 1890, end = 2019, format = "yyyy", startview = 'decade')),
+          box(plotOutput(outputId = "fire_causes_graph")),
+          box(tableOutput(outputId = "fire_causes_table"))
         )
       )
   )
@@ -101,14 +100,18 @@ server <- function(input, output) {
   
   fire_causes_count <- reactive({
     fire_causes %>% 
-      filter(fire_cause == fire_causes$check_fire_causes) %>% 
-      group_by(fire_causes$check_fire_causes, fire_causes$year) %>% 
+      filter(fire_cause %in% input$check_fire_causes) %>% 
+      filter(year %in% input$date_fire_causes) %>%
+      group_by(year, fire_cause) %>% 
       count()
   })
   output$fire_causes_graph <- renderPlot({
-    ggplot(data = fire_causes_count, aes(x = fire_cause, y = ))
+    ggplot(data = fire_causes_count(), aes(x = year, y = n)) +
+      geom_point() 
   })
-  
+  output$fire_causes_table <- renderTable ({
+    fire_causes_count()
+  })
 }
 
 #run shiny app --------------------------------------------------------------
@@ -116,4 +119,6 @@ server <- function(input, output) {
 shinyApp(ui = ui, server = server)
 
 
-
+#fire cuases issues: the graph doesnt recognize the years 
+#daysofweekdisabled not working. R doesnt recognize the function
+#is there a way to get the drop down calendar to not show up???
