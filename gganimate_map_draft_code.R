@@ -67,7 +67,16 @@ fire <- fire %>%
 # gganimate -------------------------------------------------------------------------------------
 
 ggplot() +
-    geom_sf(data = fire_yearly_data) # not working. Error: stat_sf requires the following missing aesthetics: geometry
+    geom_sf(data = ca_border, color = "grey80") +
+    geom_sf(data = fire2, fill = "dark red") +
+    theme_classic()# not working. Error: stat_sf requires the following missing aesthetics: geometry
+
+ca_fires_tmap <- tm_basemap("Esri.WorldImagery") +
+  tm_shape(fire2) +
+  tm_fill(palette = "red", alpha = 0.7)
+tmap_mode("view")
+ca_fires_tmap
+3
 
 # count things ------------------------------------------------
 

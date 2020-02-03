@@ -52,6 +52,7 @@ fire_causes <- fire %>%
     cause == 18 ~ "Escaped Prescribed Burn",
     cause == 19 ~ "Illegal Campfire"
   )) %>% 
+  arrange(desc(fire_cause)) %>% 
   mutate (fire_cause_simplified = case_when(
     fire_cause %in% c("Lightning", "Volcanic") ~ "Natural Cause",
     fire_cause %in% c('Equipment Use','Smoking','Campfire','Debris','Railroad','Arson','Playing with Fire',
@@ -122,3 +123,5 @@ shinyApp(ui = ui, server = server)
 #fire cuases issues: the graph doesnt recognize the years 
 #daysofweekdisabled not working. R doesnt recognize the function
 #is there a way to get the drop down calendar to not show up???
+# r says it doesnt recognize the geometry, but it does still produce a graph. 
+# st_simplify not working 
