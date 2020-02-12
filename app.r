@@ -14,6 +14,7 @@ library(tmap)
 library(lubridate)
 library(dplyr)
 library(lwgeom)
+library(kableExtra)
 
 # add data ----------------------------------------------------------------
 
@@ -52,7 +53,7 @@ fire_causes <- fire %>%
     cause == 18 ~ "Escaped Prescribed Burn",
     cause == 19 ~ "Illegal Campfire"
   )) %>% 
-  arrange(desc(fire_cause)) %>% 
+  arrange(fire_cause) %>% 
   mutate (fire_cause_simplified = case_when(
     fire_cause %in% c("Lightning", "Volcanic") ~ "Natural Cause",
     fire_cause %in% c('Equipment Use','Smoking','Campfire','Debris','Railroad','Arson','Playing with Fire',
@@ -60,41 +61,42 @@ fire_causes <- fire %>%
                       'Structure', 'Aircraft', 'Escaped Prescribed Burn', 'Illegal Campfire') ~ "Human Cause",
     fire_cause == "Unknown" ~ "Unknown"
   )) %>% 
+  dplyr::select(year, fire_cause, fire_name, acres, fire_cause_simplified) %>% 
   st_make_valid() %>% 
   mutate(year = as.character(year)) %>% 
   drop_na(year)
 
 # user interface ---------------------------------------------------------
 
-ui <- dashboardPage(
-  dashboardHeader(disable = T),
-  dashboardSidebar(
-    sidebarMenu(
-      menuItem("Home", tabName = "home"),
-      menuItem("Fire Causes", tabName = "fire_causes"),
-      menuItem("Acres Burned", tabName = "acres_burned")
-    )
-  ),
-  dashboardBody(tabItems(
-      tabItem(
-        tabName = "fire_causes",
-        fluidRow(
-          box(title = "title",
-              checkboxGroupInput(inputId = "check_fire_causes",
-                                 label = "Select Fire Cause(s) to explore:",
-                                 choices = c(unique(fire_causes$fire_cause)))),
-          box(title = "title",
-              dateRangeInput(inputId = "date_fire_causes",
-                         label = "Input Year(s)",
-                         start = 1890, end = 2019, format = "yyyy", startview = 'decade')),
-          box(plotOutput(outputId = "fire_causes_graph")),
-          box(tableOutput(outputId = "fire_causes_table"))
-        )
-      )
-  )
-))
-
-
+ui <- navbarPage(
+  "Navigation Bar!",
+   theme = shinytheme("united"),
+   tabPanel("Tab 1",
+            h1("Title"),
+            p("text")),
+   tabPanel("Tab 2",
+            sidebarLayout(
+              sidebarPanel("text here",
+                          checkboxGroupInput(inputId = "check_fire_causes",
+                                             label = "Select Fire Cause(s) to explore:",
+                                             choices = c(unique(fire_causes$fire_cause))),
+                          dateRangeInput(inputId = "date_fire_causes",
+                                         label = "Input Year(s)",
+                                         start = 1900, end = 2019, format = "yyyy", startview = 'decade')),
+              mainPanel("Graph and Table Here",
+                        plotOutput(outputId = "fire_causes_graph"),
+                        tableOutput(outputId = "fire_causes_table")))),
+   tabPanel("Tab 3",
+            h1("Title"),
+            p("text"),
+            sidebarLayout(
+              sidebarPanel("Text",
+                           sliderInput(inputId = "area",
+                                       label = "Select Fire Size",
+                                       min = 0, max = 100000, value = c(25, 75))),
+              mainPanel("Graph and Table Here")
+            ))
+)
 #server --------------------------------------------------------------------
 
 server <- function(input, output) {
@@ -103,25 +105,40 @@ server <- function(input, output) {
     fire_causes %>% 
       filter(fire_cause %in% input$check_fire_causes) %>% 
       filter(year %in% input$date_fire_causes) %>%
-      group_by(year, fire_cause) %>% 
+      group_by(fire_cause) %>% 
       count()
   })
   output$fire_causes_graph <- renderPlot({
-    ggplot(data = fire_causes_count(), aes(x = year, y = n)) +
-      geom_point() 
+    ggplot(data = fire_causes_count(), aes(x = fire_cause, y = n)) +
+      geom_col(aes(fill = fire_cause)) +
+      labs(x = "\nYear", y = "Number of Occurances\n")
   })
   output$fire_causes_table <- renderTable ({
-    fire_causes_count()
+    fire_causes_count() 
   })
 }
+
 
 #run shiny app --------------------------------------------------------------
 
 shinyApp(ui = ui, server = server)
 
 
+  kable(col.names = c("Year", "Cause", "Count"), align = 'c') %>% 
+  kable_styling(
+    bootstrap_options = c("striped", "hover", "condensed", "respsonsive"),
+    full_width = T,
+    position = "center"
+  )
 #fire cuases issues: the graph doesnt recognize the years 
 #daysofweekdisabled not working. R doesnt recognize the function
 #is there a way to get the drop down calendar to not show up???
 # r says it doesnt recognize the geometry, but it does still produce a graph. 
 # st_simplify not working 
+  
+  
+
+#navbarMenu= drop down bar for a main tab
+
+
+

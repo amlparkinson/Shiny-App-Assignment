@@ -72,7 +72,7 @@ ggplot() +
     theme_classic()# not working. Error: stat_sf requires the following missing aesthetics: geometry
 
 ca_fires_tmap <- tm_basemap("Esri.WorldImagery") +
-  tm_shape(fire2) +
+  tm_shape(fire_causes) +
   tm_fill(palette = "red", alpha = 0.7)
 tmap_mode("view")
 ca_fires_tmap
@@ -126,7 +126,7 @@ fire_causes <- fire2 %>%
 
 # count 
 fire_causes_simplified_count <- fire_causes %>% 
-  group_by(fire_cause_simplified) %>% 
+  group_by(fire_cause_simplified, year) %>% 
   count()
 
 # kable extra
@@ -152,3 +152,8 @@ ggplot(data = fire_causes, aes(x = fire_cause)) +
   scale_x_discrete(expand=c(0,0)) 
   #geom_text(aes(label = ))) # is there a way to add label over the bars to display their count? maybe can do this when have reactive data? maybe can set up the data frame to be based off of a table and can use the count from there
   
+
+# dist of acreage ----------------------------------------------------
+
+ggplot(fire, aes(x = acres)) +
+  geom_histogram()
