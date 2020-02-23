@@ -18,3 +18,5 @@ can look at acres burned/yr
 number of fire incidents/yr
 
 large wildfire considered >405ha (1000 acres) by https://agupubs.onlinelibrary.wiley.com/doi/full/10.1002/2014gl059576
+
+sep="" use slider as widget andhave year recognized as a numeric. can use sep="" so there will be no comma in the years

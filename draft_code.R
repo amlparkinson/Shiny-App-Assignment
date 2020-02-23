@@ -27,7 +27,16 @@ fire <- fire %>%
 
 # small sample of main data set to use to creat the code so r wont freeze as often---------------------
 
-fire2 <- fire %>% dplyr::filter (acres > 200)
+fire <- fire %>% 
+  clean_names() %>% 
+  lwgeom::st_make_valid() %>% 
+  sf::st_collection_extract() %>% 
+  mutate (fire_name = str_to_title(fire_name)) %>% 
+  dplyr::filter (acres > 200) %>% 
+  st_simplify(dTolerance = 100) %>% 
+  mutate(year = as.numeric(year)) 
+
+plot(fire)
 
 # parse dates and calculate how many days the fire burned -----------------------------------   
 
@@ -64,19 +73,34 @@ fire <- fire %>%
     ))
   # 77 fires had no year recorded
   
+  fire_area <- fire %>% 
+    mutate(area_categorical = case_when(
+      #acres < 200 ~ "<200",
+      acres < 1000 ~ "0-1,000",
+      acres < 5000 ~ "1,000-5,000",
+      acres < 10000 ~ "5,000-10,000",
+      acres < 20000 ~ "10,000-20,000",
+      acres < 40000 ~ "20,000-40,000",
+      acres < 100000 ~ "40,000-100,000",
+      acres < 500000 ~ "100,000-450,000"
+    ))
+  
 # gganimate -------------------------------------------------------------------------------------
 
 ggplot() +
-    geom_sf(data = ca_border, color = "grey80") +
-    geom_sf(data = fire2, fill = "dark red") +
-    theme_classic()# not working. Error: stat_sf requires the following missing aesthetics: geometry
+    #geom_sf(data = ca_border, color = "grey80") +
+    geom_sf(data = fire, fill = "red", alpha = 0.8, color = "red") +
+    theme_classic() +
+    theme_map() +
+    labs(title = "Year: {frame_time}") +
+    transition_time(year)# not working. Error: stat_sf requires the following missing aesthetics: geometry
 
 ca_fires_tmap <- tm_basemap("Esri.WorldImagery") +
   tm_shape(fire_causes) +
   tm_fill(palette = "red", alpha = 0.7)
 tmap_mode("view")
 ca_fires_tmap
-3
+
 
 # count things ------------------------------------------------
 
@@ -86,6 +110,14 @@ decade_fires <- fire_yearly_data %>%
 
 yearly_fires <- fire_yearly_data %>% 
   group_by(year) %>% 
+  count()
+
+fire_causes_top <- fire %>% 
+  group_by(cause) %>% 
+  count()
+
+fire_area_count <- fire_area %>% 
+  group_by(area_categorical) %>% 
   count()
 
 # fire causes ---------------------------------------------------------------
