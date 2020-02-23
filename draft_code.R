@@ -54,7 +54,7 @@ fire <- fire %>%
 #there's many missing dates. deal with this later
 # if (alarm_month = cont_month, then mutate(length_of_fire = (cont_day - alarm_day)(+1??))), else
 
-  fire_yearly_data <- fire2 %>% 
+  fire_yearly_data <- fire %>% 
     drop_na(year) %>% 
     mutate (decade = case_when(
       year < 1900 ~ "pre-1900",

@@ -80,10 +80,23 @@ fire_causes <- fire %>%
                       'Structure', 'Aircraft', 'Escaped Prescribed Burn', 'Illegal Campfire') ~ "Human Cause",
     fire_cause == "Unknown" ~ "Unknown"
   )) %>% 
-  dplyr::select(year, fire_cause, fire_name, acres, fire_cause_simplified) %>% 
   st_make_valid() %>% 
   mutate(year = as.character(year)) %>% 
-  drop_na(year)
+  drop_na(year) %>% 
+  mutate(area_categorical = case_when(
+    #acres < 200 ~ "<200",
+    acres < 1000 ~ "0-1,000",
+    acres < 5000 ~ "1,000-5,000",
+    acres < 10000 ~ "5,000-10,000",
+    acres < 20000 ~ "10,000-20,000",
+    acres < 40000 ~ "20,000-40,000",
+    acres < 100000 ~ "40,000-100,000",
+    acres < 500000 ~ "100,000-450,000"
+  )) 
+  #mutate(area_categorical = fct_relevel(area_categorical, 
+                                        #levels = c("0-1,000", "1,000-5,000", "5,000-10,000",
+                                         #          "10,000-20,000", "20,000-40,000", "40,000-100,000",
+                                          #         "100,000-450,000")))
 
 # user interface ---------------------------------------------------------
 
@@ -105,15 +118,17 @@ ui <- navbarPage(
                                       sep = "")),
               mainPanel("Graph and Table Here",
                         plotOutput(outputId = "fire_causes_graph")))),
-   tabPanel("Fire Causes Simplified",
+   tabPanel("Fire Causes Simplified"),
+   tabPanel("Fire Size",
             h1("Title"),
             p("text"),
             sidebarLayout(
-              sidebarPanel("Text",
-                           sliderInput(inputId = "area",
-                                       label = "Select Fire Size",
-                                       min = 0, max = 100000, value = c(25, 75))),
-              mainPanel("Graph and Table Here")
+              sidebarPanel(radioButtons(inputId = "check_area",
+                                        label = "Select Fire Size",
+                                        choices = c(unique(fire_causes$area_categorical)))),
+              mainPanel("Graph and Table Here",
+                        plotOutput(outputId = "area_graph"),
+                        tableOutput(outputId = "area_sum_table"))
             ))
 )
 #server --------------------------------------------------------------------
@@ -142,6 +157,40 @@ server <- function(input, output) {
       
   })
 
+  area_decades_count <- reactive({
+    fire_causes %>% 
+      filter(area_categorical %in% input$check_area) %>% 
+      group_by(decade, area_categorical) %>% 
+      count()
+  })
+  
+  output$area_graph <- renderPlot({
+    ggplot(data = area_decades_count(), aes(x = decade, y = n)) + 
+      geom_col(fill = "red") +
+      scale_x_discrete(expand = c(0,0),
+                       drop = F) +
+      scale_fill_discrete(drop = F) +
+      scale_y_continuous(expand = c(0,0)) +
+      labs (x = "\nTime", y = "Number of Fires\n") +
+      theme_classic()
+  })
+  
+  area_decades_sum <- reactive({
+    fire_causes %>% 
+      dplyr::select(decade, area_categorical) %>% 
+      filter(area_categorical %in% input$check_area) %>% 
+      group_by(decade, area_categorical) %>% 
+      count()
+  })
+  
+  output$area_sum_table <- renderTable({
+    area_decades_sum() %>% 
+      kable(col.names = c("Decade", "Area", "Sum"), align = 'c') %>% 
+      kable_styling(
+        bootstrap_options = c("striped", "hover", "condensed", "respsonsive"),
+        full_width = T,
+        position = "center")
+  })
 }
 
 
@@ -149,7 +198,7 @@ server <- function(input, output) {
 
 shinyApp(ui = ui, server = server)
 
-
+area_decades_sum %>% 
   kable(col.names = c("Year", "Cause", "Count"), align = 'c') %>% 
   kable_styling(
     bootstrap_options = c("striped", "hover", "condensed", "respsonsive"),
@@ -162,7 +211,18 @@ shinyApp(ui = ui, server = server)
 # r says it doesnt recognize the geometry, but it does still produce a graph. 
 # st_simplify not working 
   
+  area_decades_sum <- fire_causes %>% 
+      dplyr::select(decade, area_categorical) %>% 
+      filter(area_categorical %in% c("0-1,000" ,  "1,000-5,000"  )) %>% 
+      group_by(area_categorical) %>% 
+      count() 
   
+  area_decades_sum %>% 
+      kable(col.names = c("Decade", "Area", "Sum"), align = 'c') %>% 
+      kable_styling(
+        bootstrap_options = c("striped", "hover", "condensed", "respsonsive"),
+        full_width = T,
+        position = "center")
 
 #navbarMenu= drop down bar for a main tab
 
