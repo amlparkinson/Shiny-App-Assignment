@@ -1,6 +1,6 @@
 # load packages ------------------------------------------------------------
 
-library(tidyverse)
+library(tidyverse)# reinstalling/updating tidyverse and forec
 library(shiny)
 library(shinythemes)
 library(here)
@@ -28,10 +28,15 @@ fire <- read_sf(here::here("Arc_data", "fire_perimeter_shpfile"), layer = "fire_
 #test data (limit data size to stop r from freezing)
 fire <- fire %>% 
   clean_names() %>% 
-  lwgeom::st_make_valid() %>% 
-  sf::st_collection_extract() %>% 
-  mutate (fire_name = str_to_title(fire_name)) %>% 
-  dplyr::filter (acres > 200)
+  dplyr::filter (acres > 200) %>% 
+  mutate (fire_name = str_to_title(fire_name)) %>%
+  st_as_sf() %>% 
+  st_simplify(dTolerance = 100) 
+  
+  #lwgeom::st_make_valid() %>% 
+  #sf::st_collection_extract() %>% 
+   
+  
 
 # fire causes
 fire_causes <- fire %>%
@@ -58,7 +63,7 @@ fire_causes <- fire %>%
     cause == 19 ~ "Illegal Campfire"
   )) %>% 
   mutate (decade = case_when(
-    year < 1900 ~ "pre-1900",
+    year < 1900 ~ "1890s",
     year < 1909 ~ "1900s",
     year < 1919 ~ "1910s",
     year < 1929 ~ "1920s",
@@ -80,11 +85,9 @@ fire_causes <- fire %>%
                       'Structure', 'Aircraft', 'Escaped Prescribed Burn', 'Illegal Campfire') ~ "Human Cause",
     fire_cause == "Unknown" ~ "Unknown"
   )) %>% 
-  st_make_valid() %>% 
   mutate(year = as.character(year)) %>% 
   drop_na(year) %>% 
   mutate(area_categorical = case_when(
-    #acres < 200 ~ "<200",
     acres < 1000 ~ "0-1,000",
     acres < 5000 ~ "1,000-5,000",
     acres < 10000 ~ "5,000-10,000",
@@ -92,11 +95,14 @@ fire_causes <- fire %>%
     acres < 40000 ~ "20,000-40,000",
     acres < 100000 ~ "40,000-100,000",
     acres < 500000 ~ "100,000-450,000"
-  )) 
-  #mutate(area_categorical = fct_relevel(area_categorical, 
-                                        #levels = c("0-1,000", "1,000-5,000", "5,000-10,000",
-                                         #          "10,000-20,000", "20,000-40,000", "40,000-100,000",
-                                          #         "100,000-450,000")))
+  )) %>% 
+  mutate(year = as.numeric(year)) %>% 
+  mutate(area_categorical = as.factor(area_categorical))  %>% 
+  st_as_sf() %>% 
+  mutate(area_categorical = fct_relevel(area_categorical, 
+                                        levels = c("0-1,000", "1,000-5,000", "5,000-10,000",
+                                                  "10,000-20,000", "20,000-40,000", "40,000-100,000",
+                                                   "100,000-450,000")))
 
 # user interface ---------------------------------------------------------
 
@@ -105,7 +111,8 @@ ui <- navbarPage(
    theme = shinytheme("united"),
    tabPanel("Fire History",
             h1("Title"),
-            p("text")),
+            p("text"),
+            mainPanel(plotOutput(outputId = "gganimate_map"))),
    tabPanel("Fire Causes",
             sidebarLayout(
               sidebarPanel("text here",
@@ -129,12 +136,22 @@ ui <- navbarPage(
               mainPanel("Graph and Table Here",
                         plotOutput(outputId = "area_graph"),
                         tableOutput(outputId = "area_sum_table"))
-            ))
+            )),
+  navbarMenu("Fire Causes",
+             tabPanel("All"),
+             tabPanel("Natural vs Human Caused"))
 )
 #server --------------------------------------------------------------------
 
 server <- function(input, output) {
   
+  output$gganimate_map <- renderPlot({
+    ggplot() +
+      geom_sf(data = ca_border, color = "grey80") +
+      geom_sf(data = fire, fill = "red", alpha = 0.8, color = "red") +
+      theme_classic() +
+      theme_map()
+  })
   fire_causes_count <- reactive({
   
       fire_causes %>% 
@@ -152,8 +169,8 @@ server <- function(input, output) {
       labs(x = "\nYear", y = "Number of Occurances\n") +
       theme_minimal() +
       scale_color_discrete(name = "Fire Cause") +
-      scale_y_continuous(expand = c(0,0)) +
-      scale_x_discrete(expand = c(0,0))
+      scale_y_continuous(expand = c(0,0)) + #limits = c(0,max(variable)+10)
+      scale_x_continuous(expand = c(0,0))
       
   })
 
@@ -178,14 +195,14 @@ server <- function(input, output) {
   area_decades_sum <- reactive({
     fire_causes %>% 
       dplyr::select(decade, area_categorical) %>% 
-      filter(area_categorical %in% input$check_area) %>% 
-      group_by(decade, area_categorical) %>% 
+      filter(area_categorical == input$check_area) %>% 
+      group_by(area_categorical) %>% 
       count()
   })
   
   output$area_sum_table <- renderTable({
     area_decades_sum() %>% 
-      kable(col.names = c("Decade", "Area", "Sum"), align = 'c') %>% 
+      kable(col.names = c("Area", "Sum"), align = 'c') %>% 
       kable_styling(
         bootstrap_options = c("striped", "hover", "condensed", "respsonsive"),
         full_width = T,
@@ -198,13 +215,33 @@ server <- function(input, output) {
 
 shinyApp(ui = ui, server = server)
 
+
+
+
+
+##issues
+# errror when order levels in area_categorical: Outer names are only allowed for unnamed scalar atomic inputs 
+# set y axis to start at 0
+# kable error: cannot coerce class ‘c("kableExtra", "knitr_kable")’ to a data.frame; length of 'dimnames' [2] not equal to array extent
+
+
+
+
+area_decades_sum <- fire_causes %>% 
+      dplyr::select(decade, area_categorical) %>% 
+      filter(area_categorical =="0-1,000") %>% 
+      group_by(area_categorical) %>% 
+      count()
+
 area_decades_sum %>% 
-  kable(col.names = c("Year", "Cause", "Count"), align = 'c') %>% 
+  kable(col.names = c("Cause", "Count"), align = 'c') %>% 
   kable_styling(
     bootstrap_options = c("striped", "hover", "condensed", "respsonsive"),
     full_width = T,
     position = "center"
   )
+
+
 #fire cuases issues: the graph doesnt recognize the years 
 #daysofweekdisabled not working. R doesnt recognize the function
 #is there a way to get the drop down calendar to not show up???
@@ -226,25 +263,4 @@ area_decades_sum %>%
 
 #navbarMenu= drop down bar for a main tab
 
-  numericRangeInput(inputId = "date_fire_causes",
-                    label = "Input Year(s)",
-                    value = c(unique(fire_causes$year)),
-                    separator = "-"),
-  
-  airYearpickerInput(inputId = "date_fire_causes",
-                     label = "Input Year(s)",
-                     value = c(unique(fire_causes$year_date)),
-                     dateFormat = "yyyy",
-                     view = "years",
-                     separator = "-",
-                     range = T),
-multiInput = select multiple values, not a range of values
-  
-  pickerInput(inputId = "date_fire_causes",
-              label = "Input Year(s)",
-              choices = c(unique(fire_causes$year_date)),
-              multiple = T),
-  
-  output$fire_causes_table <- renderTable ({
-    fire_causes_count() 
-  })
+

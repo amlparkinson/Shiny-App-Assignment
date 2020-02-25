@@ -20,3 +20,27 @@ number of fire incidents/yr
 large wildfire considered >405ha (1000 acres) by https://agupubs.onlinelibrary.wiley.com/doi/full/10.1002/2014gl059576
 
 sep="" use slider as widget andhave year recognized as a numeric. can use sep="" so there will be no comma in the years
+
+other widgets (shiny idgets package)
+```{r}
+  numericRangeInput(inputId = "date_fire_causes",
+                    label = "Input Year(s)",
+                    value = c(unique(fire_causes$year)),
+                    separator = "-"),
+  
+  airYearpickerInput(inputId = "date_fire_causes",
+                     label = "Input Year(s)",
+                     value = c(unique(fire_causes$year_date)),
+                     dateFormat = "yyyy",
+                     view = "years",
+                     separator = "-",
+                     range = T),
+multiInput = select multiple values, not a range of values
+  
+  pickerInput(inputId = "date_fire_causes",
+              label = "Input Year(s)",
+              choices = c(unique(fire_causes$year_date)),
+              multiple = T),
+  
+```
+
