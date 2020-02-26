@@ -23,7 +23,7 @@ library(lubridate)
 library(dplyr)
 library(lwgeom)
 library(ggthemes)
-library(tibble)
+
 
 ca_border <-  read_sf(here::here("Arc_data", "ca_state_border"), layer = "CA_State_TIGER2016")
 fire <- read_sf(here::here("Arc_data", "fire_perimeter_shpfile"), layer = "fire_perimeters" ) 
@@ -31,27 +31,32 @@ fire <- read_sf(here::here("Arc_data", "fire_perimeter_shpfile"), layer = "fire_
 
 fire <- fire %>% 
   clean_names() %>%  
-  drop_na(year) %>% 
+  filter(!is.na(year)) %>% 
+  filter(year %in% c("2000", '2008')) %>% 
   st_as_sf() %>% 
   mutate (fire_name = str_to_title(fire_name)) %>% 
-  dplyr::filter (acres > 200) %>% 
+  dplyr::filter (acres > 6000) %>% 
   st_simplify(dTolerance = 100) %>% 
-  mutate(year = as.numeric(year)) 
+  mutate(year = as.numeric(year))  
+  
   
 
-fire <- as_tibble(fire)
-  lwgeom::st_make_valid() %>% 
-  sf::st_collection_extract() %>% 
-  
+ 
 
-ggplot() +
+ggplot(data = fire) +
     geom_sf(data = ca_border, color = "grey80") +
     geom_sf(data = fire, fill = "red", alpha = 0.8, color = "red") +
     theme_classic() +
     theme_map() +
-    labs(title = "Year: {frame_time}") +
-    transition_time(year)
+    labs(title = "Year: {round(frame_time,0)}") +
+    transition_time(year) +
+    shadow_mark(alpha = 1)
 
 class(fire)
+class(fire$year)
+st_crs(fire) #none
+
 ```
+error for map on first page: 'x' and 'units' must have length > 0 ; 
+Error in points[[1]] : subscript out of bounds
 

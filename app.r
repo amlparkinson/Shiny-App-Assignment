@@ -56,7 +56,8 @@ fire <- fire %>%
     year < 2019 ~ "2010s"
   )) %>% 
   st_as_sf() %>% 
-  st_simplify(dTolerance = 100) 
+  st_simplify(dTolerance = 100) %>% 
+  mutate(year = as.numeric(year))
   
 
 # data for fire causes --------------------
@@ -92,7 +93,7 @@ fire_causes <- fire %>%
     fire_cause == "Unknown" ~ "Unknown"
   )) %>% 
   mutate(year = as.numeric(year)) %>% 
-  drop_na(year)
+  filter(!is.na(year))
 
 # data for fire sizes
 
@@ -108,9 +109,8 @@ fire_size <- fire %>%
   )) %>% 
   mutate(year = as.numeric(year)) %>% 
   mutate(area_categorical = as.factor(area_categorical))  %>% 
-  drop_na(decade) %>% 
-  st_as_sf() %>% 
-  arrange(area_categorical)
+  filter(!is.na(decade)) %>% 
+  st_as_sf() 
 
 
   mutate(area_categorical = fct_relevel(area_categorical, 
@@ -244,7 +244,8 @@ shinyApp(ui = ui, server = server)
 
 
 ##issues
-# errror when order levels in area_categorical: Outer names are only allowed for unnamed scalar atomic inputs 
+# errror when order levels in area_categorical: Outer names are only allowed for unnamed scalar atomic inputs
+# error for map on first page: 'x' and 'units' must have length > 0 ; Error in points[[1]] : subscript out of bounds
 # set y axis to start at 0
 # kable error: cannot coerce class ‘c("kableExtra", "knitr_kable")’ to a data.frame; length of 'dimnames' [2] not equal to array extent
 
