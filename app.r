@@ -17,10 +17,12 @@ library(lwgeom)
 library(kableExtra)
 library(shinyWidgets)
 library(ggthemes)
+library(leaflet)
 
 # add data ----------------------------------------------------------------
 
-ca_border <-  read_sf(here::here("Arc_data", "ca_state_border"), layer = "CA_State_TIGER2016")
+ca_border <-  read_sf(here::here("Arc_data", "ca_state_border"), layer = "CA_State_TIGER2016") %>% 
+  st_transform(crs = 4326)
 fire <- read_sf(here::here("Arc_data", "fire_perimeter_shpfile"), layer = "fire_perimeters" ) # still need to remove fires outisde of CA, even though those fires are listed as being in CA but visually are outside of the state boundaries
 
 # sub data ---------------------------------------------------------------
@@ -30,8 +32,10 @@ fire <- fire %>%
   clean_names() %>% 
   dplyr::filter (acres > 200) %>% 
   mutate (fire_name = str_to_title(fire_name)) %>%
+  st_transform(crs = 4326) %>% 
   st_as_sf() %>% 
-  st_simplify(dTolerance = 100) 
+  st_simplify(dTolerance = 100)  
+  
   
   #lwgeom::st_make_valid() %>% 
   #sf::st_collection_extract() %>% 
@@ -98,7 +102,7 @@ fire_causes <- fire %>%
   )) %>% 
   mutate(year = as.numeric(year)) %>% 
   mutate(area_categorical = as.factor(area_categorical))  %>% 
-  st_as_sf() %>% 
+  st_as_sf() 
   mutate(area_categorical = fct_relevel(area_categorical, 
                                         levels = c("0-1,000", "1,000-5,000", "5,000-10,000",
                                                   "10,000-20,000", "20,000-40,000", "40,000-100,000",
@@ -113,19 +117,6 @@ ui <- navbarPage(
             h1("Title"),
             p("text"),
             mainPanel(plotOutput(outputId = "gganimate_map"))),
-   tabPanel("Fire Causes",
-            sidebarLayout(
-              sidebarPanel("text here",
-                          checkboxGroupInput(inputId = "check_fire_causes",
-                                             label = "Select Fire Cause(s) to explore:",
-                                             choices = c(unique(fire_causes$fire_cause))),
-                          sliderInput(inputId = "date_fire_causes1",
-                                      label = "Input Year(s)",
-                                      min = 1880, max = 2019, value = c(1900,1920),
-                                      sep = "")),
-              mainPanel("Graph and Table Here",
-                        plotOutput(outputId = "fire_causes_graph")))),
-   tabPanel("Fire Causes Simplified"),
    tabPanel("Fire Size",
             h1("Title"),
             p("text"),
@@ -138,22 +129,37 @@ ui <- navbarPage(
                         tableOutput(outputId = "area_sum_table"))
             )),
   navbarMenu("Fire Causes",
-             tabPanel("All"),
+             tabPanel("All",
+                      sidebarLayout(
+                        sidebarPanel("text here",
+                                     checkboxGroupInput(inputId = "check_fire_causes",
+                                                        label = "Select Fire Cause(s) to explore:",
+                                                        choices = c(unique(fire_causes$fire_cause))),
+                                     sliderInput(inputId = "date_fire_causes1",
+                                                 label = "Input Year(s)",
+                                                 min = 1880, max = 2019, value = c(1900,1920),
+                                                 sep = "")),
+                        mainPanel("Graph and Table Here",
+                                  plotOutput(outputId = "fire_causes_graph"),
+                                  leafletOutput('fire_causes_map')))),
              tabPanel("Natural vs Human Caused"))
 )
 #server --------------------------------------------------------------------
 
 server <- function(input, output) {
   
+  #gganimate map for intro page
   output$gganimate_map <- renderPlot({
     ggplot() +
       geom_sf(data = ca_border, color = "grey80") +
       geom_sf(data = fire, fill = "red", alpha = 0.8, color = "red") +
       theme_classic() +
-      theme_map()
+      theme_map() +
+      labs(title = "Year: {frame_time}") +
+      transition_time(year)
   })
+  # data frame for all fire causes
   fire_causes_count <- reactive({
-  
       fire_causes %>% 
       filter(fire_cause %in% input$check_fire_causes) %>% 
       filter(year >= input$date_fire_causes1[1]) %>%
@@ -161,17 +167,23 @@ server <- function(input, output) {
       group_by(fire_cause, year) %>% 
       count()
   })
+  # graph for fire causes
   output$fire_causes_graph <- renderPlot({
-    
     ggplot(data = fire_causes_count(), aes(x = year, y = n)) +
       geom_point(aes(color = fire_cause)) +
       geom_line(aes(color = fire_cause)) +
       labs(x = "\nYear", y = "Number of Occurances\n") +
       theme_minimal() +
       scale_color_discrete(name = "Fire Cause") +
-      scale_y_continuous(expand = c(0,0)) + #limits = c(0,max(variable)+10)
+      scale_y_continuous(expand = c(0,0),
+                         limits = c(0, max(n))) + #limits = c(0,max(variable)+10)
       scale_x_continuous(expand = c(0,0))
       
+  })
+  #map for fire causes
+  output$fire_causes_map <- renderLeaflet({
+    tm_shape(data = ca_border) +
+      tm_fill(data = fire_causes_count())
   })
 
   area_decades_count <- reactive({
@@ -224,7 +236,8 @@ shinyApp(ui = ui, server = server)
 # set y axis to start at 0
 # kable error: cannot coerce class ‘c("kableExtra", "knitr_kable")’ to a data.frame; length of 'dimnames' [2] not equal to array extent
 
-
+  tm_shape(fire_causes) +
+    tm_fill("area_categorical")
 
 
 area_decades_sum <- fire_causes %>% 
@@ -240,7 +253,7 @@ area_decades_sum %>%
     full_width = T,
     position = "center"
   )
-
+crs(fire_causes)
 
 #fire cuases issues: the graph doesnt recognize the years 
 #daysofweekdisabled not working. R doesnt recognize the function
@@ -261,6 +274,17 @@ area_decades_sum %>%
         full_width = T,
         position = "center")
 
-#navbarMenu= drop down bar for a main tab
 
+  tabPanel("Fire Causes",
+           sidebarLayout(
+             sidebarPanel("text here",
+                          checkboxGroupInput(inputId = "check_fire_causes",
+                                             label = "Select Fire Cause(s) to explore:",
+                                             choices = c(unique(fire_causes$fire_cause))),
+                          sliderInput(inputId = "date_fire_causes1",
+                                      label = "Input Year(s)",
+                                      min = 1880, max = 2019, value = c(1900,1920),
+                                      sep = "")),
+             mainPanel("Graph and Table Here",
+                       plotOutput(outputId = "fire_causes_graph")))),
 
