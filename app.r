@@ -23,8 +23,6 @@ library(magick) #need?
 library(tmap)
 library(ggthemes)
 
-#library(lwgeom)
-
 # add data ----------------------------------------------------------------
 
 ca_border <-  read_sf(here::here("Arc_data", "ca_state_border"), layer = "CA_State_TIGER2016") %>% 
@@ -188,13 +186,14 @@ server <- function(input, output) {
     fire_size %>% 
       filter(area_categorical == input$select_area) %>% 
       group_by(decade, area_categorical) %>% 
-      count()
+      summarize(n = sum())
   })
   
 #graph output for fire size per decade 
   output$area_graph <- renderPlot({
     ggplot(data = area_decades_count(), aes(x = decade, y = n)) + 
-      geom_col(fill = "red") +
+      geom_col(fill = "red", alpha= 0.7) +
+      geom_errorbar(aes(x= decade, ymin = )) +
       scale_x_discrete(expand = c(0,0),
                        drop = F) +
       scale_fill_discrete(drop = F) +
@@ -294,36 +293,18 @@ shinyApp(ui = ui, server = server)
     group_by(year, fire_cause_simplified) %>% 
     count()
 
+  area_decades_count <- fire_size %>% 
+      filter(area_categorical == "1,000-5,000") %>% 
+      group_by(decade, area_categorical) %>% 
+      summarize(n = sum())
 ##issues
-# set y axis to end at max y input plus some
-# dropped decades for largest size class
+# # dropped decades for largest size class
 # either mutate fct_relevel or ordered/factor() works to assign levels (even though get the unnamed scalar inpus error using mutate fct_relevel, it still works). but levels show up as unordered numbers in the shiny app bc theyre recognized as factor class, but they appear as their actual names when the class is a character but the levels are unordered
   # fix was to manually enter the size classes
   
 ## to do
 # add percentages at top of bars for fire size graph?
 
-  fire_causes_count <-  fire_causes %>% 
-      filter(fire_cause %in% input$check_fire_causes) %>% 
-      filter(year >= input$date_fire_causes1[1]) %>%
-      filter(year <= input$date_fire_causes1[2]) %>% 
-      group_by(fire_cause, year) %>% 
-      count()
-  })
-  
-  y_axis_lim <- reactive({ fire_causes_count %>% summarize(max = max(n))})
-  
-  # graph for fire causes
-  output$fire_causes_graph <- renderPlot({
-    ggplot(data = fire_causes_count(), aes(x = year, y = n)) +
-      geom_point(aes(color = fire_cause)) +
-      geom_line(aes(color = fire_cause)) +
-      labs(x = "\nYear", y = "Number of Occurances\n") +
-      theme_minimal() +
-      scale_color_discrete(name = "Fire Cause") +
-      scale_y_continuous(expand = c(0,0),
-                         limits = c(0, y_axis_lim)) + #limits = c(0,max(variable)+10); input$date_fire_causes1[2], max(fire_causes_count$year)
-      scale_x_continuous(expand = c(0,0))
 
   
 
