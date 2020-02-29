@@ -30,16 +30,16 @@ library(ggthemes)
 ca_border <-  read_sf(here::here("Arc_data", "ca_state_border"), layer = "CA_State_TIGER2016") %>% 
   st_transform(crs = 4326)
 
-fire <- read_sf(here::here("Arc_data", "fire_perimeter_shpfile"), layer = "fire_perimeters" ) # still need to remove fires outisde of CA, even though those fires are listed as being in CA but visually are outside of the state boundaries
+fire_raw <- read_sf(here::here("Arc_data", "fire_perimeter_shpfile"), layer = "fire_perimeters" ) # still need to remove fires outisde of CA, even though those fires are listed as being in CA but visually are outside of the state boundaries
 
 # sub data ------------------------------------------------------------------------------------------
 
 #test data (limit data size to stop r from freezing)-------------
-fire <- fire %>% 
+fire <- fire_raw %>% 
   clean_names() %>% 
   dplyr::filter (acres > 200) %>% 
   mutate (fire_name = str_to_title(fire_name)) %>%
-  st_transform(crs = 4326) %>% 
+  st_transform(crs = 4269) %>% 
   mutate (decade = case_when(
     year < 1900 ~ "1890s",
     year < 1909 ~ "1900s",
@@ -56,7 +56,7 @@ fire <- fire %>%
     year < 2019 ~ "2010s"
   )) %>% 
   st_as_sf() %>% 
-  st_simplify(dTolerance = 100) %>% 
+  #st_simplify(dTolerance = 10) %>% error. converts geometry to empty values :(
   mutate(year = as.numeric(year))
   
 
@@ -85,6 +85,11 @@ fire_causes <- fire %>%
     cause == 19 ~ "Illegal Campfire"
   )) %>% 
   arrange(fire_cause) %>% 
+  mutate(year = as.numeric(year)) %>% 
+  filter(!is.na(year))
+
+#data for fire causes to compare natural vs human casued fires
+fire_cause_simplified <- fire_causes %>% 
   mutate (fire_cause_simplified = case_when(
     fire_cause %in% c("Lightning", "Volcanic") ~ "Natural Cause",
     fire_cause %in% c('Equipment Use','Smoking','Campfire','Debris','Railroad','Arson','Playing with Fire',
@@ -92,11 +97,10 @@ fire_causes <- fire %>%
                       'Structure', 'Aircraft', 'Escaped Prescribed Burn', 'Illegal Campfire') ~ "Human Cause",
     fire_cause == "Unknown" ~ "Unknown"
   )) %>% 
-  mutate(year = as.numeric(year)) %>% 
-  filter(!is.na(year))
+  filter (fire_cause_simplified != "Unknown")
+ 
 
 # data for fire sizes
-
 fire_size <- fire %>% 
   mutate(area_categorical = case_when(
     acres < 1000 ~ "0-1,000",
@@ -110,14 +114,15 @@ fire_size <- fire %>%
   mutate(year = as.numeric(year)) %>% 
   mutate(area_categorical = as.factor(area_categorical))  %>% 
   filter(!is.na(decade)) %>% 
-  st_as_sf() 
+  st_as_sf() %>% 
+  mutate(area_categorical = fct_relevel(area_categorical, levels = c("0-1,000", "1,000-5,000", "5,000-10,000",
+                                                                     "10,000-20,000", "20,000-40,000", "40,000-100,000",
+                                                                     "100,000-450,000"))) 
 
-
-  mutate(area_categorical = fct_relevel(area_categorical, 
-                                        levels = c("0-1,000", "1,000-5,000", "5,000-10,000",
-                                                  "10,000-20,000", "20,000-40,000", "40,000-100,000",
-                                                   "100,000-450,000")))
-
+fire_size$area_categorical <- ordered(fire_size$area_categorical, levels = c("0-1,000", "1,000-5,000", "5,000-10,000",
+                                                                             "10,000-20,000", "20,000-40,000", "40,000-100,000",
+                                                                             "100,000-450,000"))
+  
 # user interface ---------------------------------------------------------
 
 ui <- navbarPage(
@@ -125,33 +130,42 @@ ui <- navbarPage(
    theme = shinytheme("united"),
    tabPanel("Fire History",
             h1("Title"),
-            p("text"),
-            mainPanel(plotOutput(outputId = "gganimate_map"))),
+            #mainPanel(plotOutput(outputId = "gganimate_map")),
+            p("text")),
    tabPanel("Fire Size",
             h1("Title"),
             p("text"),
             sidebarLayout(
-              sidebarPanel(radioButtons(inputId = "check_area",
-                                        label = "Select Fire Size",
-                                        choices = c(unique(fire_size$area_categorical)))),
+              sidebarPanel(radioButtons(inputId = "select_area",
+                                        label = "Select Fire Size (Acres)",
+                                        choices = c("0-1,000", "1,000-5,000", "5,000-10,000", "10,000-20,000", "20,000-40,000", "40,000-100,000", "100,000-450,000"))), #unique(fire_size$area_categorical)
               mainPanel("Graph and Table Here",
                         plotOutput(outputId = "area_graph"),
-                        tableOutput(outputId = "area_sum_table")))),
+                        tableOutput(outputId = "area_sum_table"),
+                        leafletOutput(outputId = 'size_decades_map')))),
   navbarMenu("Fire Causes",
              tabPanel("All",
                       sidebarLayout(
                         sidebarPanel("text here",
-                                     checkboxGroupInput(inputId = "check_fire_causes",
-                                                        label = "Select Fire Cause(s) to explore:",
-                                                        choices = c(unique(fire_causes$fire_cause))),
+                                     multiInput(inputId = "check_fire_causes",
+                                                 label = "Select Fire Cause(s) to explore:",
+                                                 choices = c(unique(fire_causes$fire_cause))),
+                                     #checkboxGroupInput(inputId = "check_fire_causes",
+                                      #                  label = "Select Fire Cause(s) to explore:",
+                                       #                 choices = c(unique(fire_causes$fire_cause))),
                                      sliderInput(inputId = "date_fire_causes1",
-                                                 label = "Input Year(s)",
-                                                 min = 1880, max = 2019, value = c(1900,1920),
+                                                 label = "Select Range of Year(s)",
+                                                 min = 1880, max = 2019, value = c(1880,2019),
                                                  sep = "")),
                         mainPanel("Graph and Table Here",
                                   plotOutput(outputId = "fire_causes_graph"),
                                   leafletOutput('fire_causes_map')))),
-             tabPanel("Natural vs Human Caused"))
+             tabPanel("Natural vs Human Caused",
+                      sidebarLayout(
+                        sidebarPanel("text"),
+                        mainPanel("Graph Here",
+                                  plotOutput(outputId = "fire_causes_simplified_graph"))
+                      )))
 )
 
 #server --------------------------------------------------------------------
@@ -159,15 +173,72 @@ ui <- navbarPage(
 server <- function(input, output) {
   
   #gganimate map for intro page
-  output$gganimate_map <- renderPlot({
-    ggplot() +
-      geom_sf(data = ca_border, color = "grey80") +
-      geom_sf(data = fire, fill = "red", alpha = 0.8, color = "red") +
-      theme_classic() +
-      theme_map() 
+  #output$gganimate_map <- renderPlot({
+   # ggplot() +
+    #  geom_sf(data = ca_border, color = "grey80") +
+     # geom_sf(data = fire, fill = "red", alpha = 0.8, color = "red") +
+      #theme_classic() +
+      #theme_map() 
       #labs(title = "Year: {frame_time}") +
       #transition_time(year)
+  #})
+  
+#data frame for the number of fires that occurred per decade grouped by fire size
+  area_decades_count <- reactive({
+    fire_size %>% 
+      filter(area_categorical == input$select_area) %>% 
+      group_by(decade, area_categorical) %>% 
+      count()
   })
+  
+#graph output for fire size per decade 
+  output$area_graph <- renderPlot({
+    ggplot(data = area_decades_count(), aes(x = decade, y = n)) + 
+      geom_col(fill = "red") +
+      scale_x_discrete(expand = c(0,0),
+                       drop = F) +
+      scale_fill_discrete(drop = F) +
+      scale_y_continuous(expand = c(0,0)) +
+      labs (x = "\nTime", y = "Number of Fires\n") +
+      theme_classic() +
+      theme(plot.margin = unit(c(5,5,5,5), "lines"))
+  })
+  
+#data frame to total ALL the fire sizes that occurred throughout the fire history
+  area_decades_sum <- fire_size %>% 
+    group_by(area_categorical) %>% 
+    count() %>% 
+    st_drop_geometry() %>% 
+    rename("Total Number of Fires" = n) %>% 
+    rename ("Fire Size" = area_categorical)
+  
+#table for the total fire sizes
+  output$area_sum_table <- renderTable(
+    area_decades_sum, 
+    striped =T, 
+    bordered = T,
+    align = 'c'
+  )
+  
+  size_decades_map_data <- reactive({
+    fire_size %>% 
+      filter(area_categorical == input$select_area)
+  })
+  
+#  output$size_decades_map <- renderPlot({
+#    ggplot() +
+#      geom_sf(data = ca_border, color = "grey80") +
+#      geom_sf(data = size_decades_map_data(), aes(fill = decade), alpha = 0.8, color = "red")
+#  })
+  
+  #output$size_decades_map <- renderLeaflet({
+  #   leaflet(size_decades_map_data)
+  #})
+  
+  
+  
+  
+  
   # data frame for all fire causes
   fire_causes_count <- reactive({
       fire_causes %>% 
@@ -178,7 +249,7 @@ server <- function(input, output) {
       count()
   })
   
-  y_axis_lim <- reactive({ fire_causes_count %>% max(n)})
+  y_axis_lim <- reactive({ fire_causes_count %>% summarize(max = max(n))})
   
   # graph for fire causes
   output$fire_causes_graph <- renderPlot({
@@ -188,116 +259,80 @@ server <- function(input, output) {
       labs(x = "\nYear", y = "Number of Occurances\n") +
       theme_minimal() +
       scale_color_discrete(name = "Fire Cause") +
+      expand_limits(y = 0) +
       scale_y_continuous(expand = c(0,0)) + #limits = c(0,max(variable)+10); input$date_fire_causes1[2], max(fire_causes_count$year)
-      scale_x_continuous(expand = c(0,0))
+      scale_x_continuous(expand = c(0,0)) 
+     
       
   })
   #map for fire causes
-  output$fire_causes_map <- renderLeaflet({
-    tm_shape(data = ca_border) +
-      tm_fill(data = fire_causes_count())
-  })
+ # output$fire_causes_map <- renderLeaflet({
+ #   tm_shape(data = ca_border) +
+ #     tm_fill(data = fire_causes_count())
+ # })
 
-  area_decades_count <- reactive({
-    fire_size %>% 
-      filter(area_categorical %in% input$check_area) %>% 
-      group_by(decade, area_categorical) %>% 
-      count()
-  })
+  output$fire_causes_simplified_graph <- renderPlot({
+    ggplot(data = fire_causes_simplified_count, aes(x = year, y = n)) +
+      geom_point(aes(color = fire_cause_simplified)) +
+      geom_line(aes(color = fire_cause_simplified)) +
+      scale_color_discrete(name = "Cause") +
+      theme_minimal() +
+      scale_y_continuous(expand = c(0,0)) + 
+      scale_x_continuous(expand = c(0,0)) +
+      labs(x = "\nYear", y = "Number of Occurances\n")
+  }) # can try to make this reactive by looking at fire size (include all as an option, maybe create new column, then unite it and use str_detect in filter to inlcude all option)
   
-  output$area_graph <- renderPlot({
-    ggplot(data = area_decades_count(), aes(x = decade, y = n)) + 
-      geom_col(fill = "red") +
-      scale_x_discrete(expand = c(0,0),
-                       drop = F) +
-      scale_fill_discrete(drop = F) +
-      scale_y_continuous(expand = c(0,0)) +
-      labs (x = "\nTime", y = "Number of Fires\n") +
-      theme_classic()
-  })
-  
-  area_decades_sum <- reactive({
-    fire_size %>% 
-      dplyr::select(decade, area_categorical) %>% 
-      filter(area_categorical == input$check_area) %>% 
-      group_by(area_categorical) %>% 
-      count()
-  })
-  
-  output$area_sum_table <- renderTable({
-    area_decades_sum() %>% 
-      kable(col.names = c("Area", "Sum"), align = 'c') %>% 
-      kable_styling(
-        bootstrap_options = c("striped", "hover", "condensed", "respsonsive"),
-        full_width = T,
-        position = "center")
-  })
 }
-
-
+  
+  
 #run shiny app --------------------------------------------------------------
 
 shinyApp(ui = ui, server = server)
 
 
-
-
+  fire_causes_simplified_count <- fire_cause_simplified %>% 
+    group_by(year, fire_cause_simplified) %>% 
+    count()
 
 ##issues
-# errror when order levels in area_categorical: Outer names are only allowed for unnamed scalar atomic inputs
-# error for map on first page: 'x' and 'units' must have length > 0 ; Error in points[[1]] : subscript out of bounds
-# set y axis to start at 0
-# kable error: cannot coerce class ‘c("kableExtra", "knitr_kable")’ to a data.frame; length of 'dimnames' [2] not equal to array extent
+# set y axis to end at max y input plus some
+# dropped decades for largest size class
+# either mutate fct_relevel or ordered/factor() works to assign levels (even though get the unnamed scalar inpus error using mutate fct_relevel, it still works). but levels show up as unordered numbers in the shiny app bc theyre recognized as factor class, but they appear as their actual names when the class is a character but the levels are unordered
+  # fix was to manually enter the size classes
+  
+## to do
+# add percentages at top of bars for fire size graph?
 
-  tm_shape(fire_causes) +
-    tm_fill("area_categorical")
-
-
-area_decades_sum <- fire_causes %>% 
-      dplyr::select(decade, area_categorical) %>% 
-      filter(area_categorical =="0-1,000") %>% 
-      group_by(area_categorical) %>% 
+  fire_causes_count <-  fire_causes %>% 
+      filter(fire_cause %in% input$check_fire_causes) %>% 
+      filter(year >= input$date_fire_causes1[1]) %>%
+      filter(year <= input$date_fire_causes1[2]) %>% 
+      group_by(fire_cause, year) %>% 
       count()
-
-area_decades_sum %>% 
-  kable(col.names = c("Cause", "Count"), align = 'c') %>% 
-  kable_styling(
-    bootstrap_options = c("striped", "hover", "condensed", "respsonsive"),
-    full_width = T,
-    position = "center"
-  )
-crs(fire_causes)
-
-#fire cuases issues: the graph doesnt recognize the years 
-#daysofweekdisabled not working. R doesnt recognize the function
-#is there a way to get the drop down calendar to not show up???
-# r says it doesnt recognize the geometry, but it does still produce a graph. 
-# st_simplify not working 
+  })
   
-  area_decades_sum <- fire_causes %>% 
-      dplyr::select(decade, area_categorical) %>% 
-      filter(area_categorical %in% c("0-1,000" ,  "1,000-5,000"  )) %>% 
-      group_by(area_categorical) %>% 
-      count() 
+  y_axis_lim <- reactive({ fire_causes_count %>% summarize(max = max(n))})
   
-  area_decades_sum %>% 
-      kable(col.names = c("Decade", "Area", "Sum"), align = 'c') %>% 
-      kable_styling(
-        bootstrap_options = c("striped", "hover", "condensed", "respsonsive"),
-        full_width = T,
-        position = "center")
+  # graph for fire causes
+  output$fire_causes_graph <- renderPlot({
+    ggplot(data = fire_causes_count(), aes(x = year, y = n)) +
+      geom_point(aes(color = fire_cause)) +
+      geom_line(aes(color = fire_cause)) +
+      labs(x = "\nYear", y = "Number of Occurances\n") +
+      theme_minimal() +
+      scale_color_discrete(name = "Fire Cause") +
+      scale_y_continuous(expand = c(0,0),
+                         limits = c(0, y_axis_lim)) + #limits = c(0,max(variable)+10); input$date_fire_causes1[2], max(fire_causes_count$year)
+      scale_x_continuous(expand = c(0,0))
+
+  
+
+  ggplot() +
+    geom_sf(data = ca_border, color = "grey80") +
+    geom_sf(data = fire_sub, aes(fill = YEAR_), color = NA, alpha = 0.5)
+  
 
 
-  tabPanel("Fire Causes",
-           sidebarLayout(
-             sidebarPanel("text here",
-                          checkboxGroupInput(inputId = "check_fire_causes",
-                                             label = "Select Fire Cause(s) to explore:",
-                                             choices = c(unique(fire_causes$fire_cause))),
-                          sliderInput(inputId = "date_fire_causes1",
-                                      label = "Input Year(s)",
-                                      min = 1880, max = 2019, value = c(1900,1920),
-                                      sep = "")),
-             mainPanel("Graph and Table Here",
-                       plotOutput(outputId = "fire_causes_graph")))),
+
+
 

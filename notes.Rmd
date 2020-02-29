@@ -21,6 +21,8 @@ large wildfire considered >405ha (1000 acres) by https://agupubs.onlinelibrary.w
 
 sep="" use slider as widget andhave year recognized as a numeric. can use sep="" so there will be no comma in the years
 
+shiny does not like tables made in kable extra!, just user render table
+
 other widgets (shiny idgets package)
 ```{r}
   numericRangeInput(inputId = "date_fire_causes",
