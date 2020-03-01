@@ -170,7 +170,8 @@ ui <- navbarPage(
                                                  sep = "")),
                         mainPanel("Graph and Table Here",
                                   plotOutput(outputId = "fire_causes_graph"),
-                                  leafletOutput('fire_causes_map')))),
+                                  leafletOutput('fire_causes_map'),
+                                  tableOutput(outputId = 'fire_causes_table')))),
              tabPanel("Natural vs Human Caused",
                       sidebarLayout(
                         sidebarPanel("text",
@@ -265,6 +266,14 @@ server <- function(input, output) {
       count()
   })
   
+  fire_causes_count_sum <- reactive ({
+    fire_causes %>% 
+      filter(fire_cause %in% input$check_fire_causes) %>% 
+      filter(year >= input$date_fire_causes1[1]) %>%
+      filter(year <= input$date_fire_causes1[2]) %>% 
+      group_by(fire_cause) %>% 
+      summarise(sum_fires = n())
+  })
 # graph for fire causes
   output$fire_causes_graph <- renderPlot({
     ggplot(data = fire_causes_count(), aes(x = year, y = n)) +
@@ -276,8 +285,11 @@ server <- function(input, output) {
       expand_limits(y = 0) +
       scale_y_continuous(expand = c(0,0)) + #limits = c(0,max(variable)+10); input$date_fire_causes1[2], max(fire_causes_count$year)
       scale_x_continuous(expand = c(0,0)) 
-     
-      
+  })
+  
+# table for total fire causes
+  output$fire_causes_table <- renderTable({
+    fire_causes_count_sum
   })
   #map for fire causes
  # output$fire_causes_map <- renderLeaflet({
@@ -312,9 +324,12 @@ server <- function(input, output) {
   
   output$fire_causes_simplified_graph <- renderPlot({
     
-   if(input$select_count_area == "Total Annual Fires") {ggplot(data = fire_cause_simplified_count_acres_select, aes(x = year, y = yearly_acres_burned)) +
+   if(input$select_count_area == "Total Annual Fires") {
+     print(ggplot(data = fire_cause_simplified_count_acres_select, 
+            aes(x = year, y = yearly_acres_burned)) +
        geom_point(aes(color = fire_cause_simplified)) +
-       geom_line(aes(color = fire_cause_simplified))}
+       geom_line(aes(color = fire_cause_simplified)))}
+    else {print("No")}
   # if(input$select_count_area == "Annual Acres Burned") {print(acres_plot)}
   
     }) # can try to make this reactive by looking at fire size (include all as an option, maybe create new column, then unite it and use str_detect in filter to inlcude all option)

@@ -74,19 +74,53 @@ fire_date <- fire %>%
 # a few data points have containment day entered BEFORE the alarm date. remove those.
 # if (alarm_month = cont_month, then mutate(length_of_fire = (cont_day - alarm_day)(+1??))), else
 
-#fire season
-fire_season <- fire_date %>% 
-  filter(alarm_year < 2020) %>% 
+#fire season. very few fires from before 1970 had complete record of alarm adn containment dates, so combined those into two grpups (1920s-1939, 1940-1969)
+fire_season_pre1939 <- fire_date %>% 
+  filter(alarm_year < 1939) %>% 
+  summarize(min_alarm = min(alarm_month),
+            mean_alarm = mean(alarm_month),
+            max_alarm = max(alarm_month),
+            sample_size = n()) %>% 
+  mutate(alarm_year = "1939")
+
+fire_season_pre1969 <- fire_date %>%
+  filter(alarm_year %in% c(1940:1969)) %>% 
+  summarize(min_alarm = min(alarm_month),
+            mean_alarm = mean(alarm_month),
+            max_alarm = max(alarm_month),
+            sample_size = n()) %>% 
+  mutate(alarm_year = "1969")
+
+fire_season_post1970 <- fire_date %>% 
+  filter(alarm_year %in% c(1970:2019)) %>% 
   group_by(alarm_year) %>% 
   summarize(min_alarm = min(alarm_month),
             mean_alarm = mean(alarm_month),
             max_alarm = max(alarm_month),
-            sample_size = n())
+            sample_size = n()) 
 
-ggplot(fire_season, aes(x = alarm_year, y = mean_alarm)) +
-  geom_col() # try the stacked facet wrap
+fire_season_summary <- rbind(fire_season_pre1939, fire_season_pre1969, fire_season_post1970)
+fire_season_summary <- fire_season_summary %>% 
+  mutate(alarm_year = as.numeric(alarm_year))
 
-  fire_yearly_data <- fire %>% 
+ggplot(fire_season_post1970, aes(x = alarm_year, y = min_alarm)) +
+  geom_line() +# try the stacked facet wrap
+  geom_smooth(method = "lm")
+
+  
+# fire length  ------------------------------------------------------------
+fire_length_sub_pos<- fire_date %>% 
+  filter(length_of_fires >= 0)
+
+fire_length_sub_neg <- fire_date %>% 
+  filter(length_of_fires < -100) %>% 
+  mutate(length_of_fires = ((365 - alarm_day_of_year) + cont_day_of_year))
+
+fire_length <- rbind(fire_length_sub_pos, fire_length_sub_neg)
+
+(cont_day_of_year - alarm_day_of_year)
+# toher sub data---------------------------------------
+fire_yearly_data <- fire %>% 
     drop_na(year) %>% 
     mutate (decade = case_when(
       year < 1900 ~ "pre-1900",
