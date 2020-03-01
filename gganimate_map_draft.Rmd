@@ -39,16 +39,13 @@ fire <- fire %>%
   st_simplify(dTolerance = 100) %>% 
   mutate(year = as.numeric(year))  
   
-  
-
- 
-
 ggplot(data = fire) +
     geom_sf(data = ca_border, color = "grey80") +
     geom_sf(data = fire, fill = "red", alpha = 0.8, color = "red") +
     theme_classic() +
     theme_map() +
-    labs(title = "Year: {round(frame_time,0)}") +
+    labs(title = "Year: {round(frame_time,0)}",
+         subtitle = "Acres Burned: {round(") +
     transition_time(year) +
     shadow_mark(alpha = 1)
 

@@ -26,7 +26,7 @@ library(ggthemes)
 # add data ----------------------------------------------------------------
 
 ca_border <-  read_sf(here::here("Arc_data", "ca_state_border"), layer = "CA_State_TIGER2016") %>% 
-  st_transform(crs = 4326)
+  st_transform(crs = 4269) #4326
 
 fire_raw <- read_sf(here::here("Arc_data", "fire_perimeter_shpfile"), layer = "fire_perimeters" ) # still need to remove fires outisde of CA, even though those fires are listed as being in CA but visually are outside of the state boundaries
 
@@ -86,7 +86,7 @@ fire_causes <- fire %>%
   mutate(year = as.numeric(year)) %>% 
   filter(!is.na(year))
 
-#data for fire causes to compare natural vs human casued fires
+#data for fire causes to compare natural vs human casued fires ------------------------------
 fire_cause_simplified <- fire_causes %>% 
   mutate (fire_cause_simplified = case_when(
     fire_cause %in% c("Lightning", "Volcanic") ~ "Natural Cause",
@@ -95,10 +95,24 @@ fire_cause_simplified <- fire_causes %>%
                       'Structure', 'Aircraft', 'Escaped Prescribed Burn', 'Illegal Campfire') ~ "Human Cause",
     fire_cause == "Unknown" ~ "Unknown"
   )) %>% 
-  filter (fire_cause_simplified != "Unknown")
- 
+  filter (fire_cause_simplified != "Unknown") 
 
-# data for fire sizes
+# sum number of yearly fires
+fire_causes_simplified_count <- fire_cause_simplified %>% 
+  group_by(year, fire_cause_simplified) %>% 
+  count() 
+
+#sum yearly acres burned 
+fire_causes_simplified_acres <- fire_cause_simplified %>% 
+  group_by(year, fire_cause_simplified) %>% 
+  summarise(yearly_acres_burned = sum(acres)) %>% 
+  st_drop_geometry() %>% 
+  dplyr::select(year, yearly_acres_burned)
+
+#join data frames
+fire_causes_simplified_count_acres <- inner_join(fire_causes_simplified_count, fire_causes_simplified_acres, by = "year")
+
+# data for fire sizes ---------------------------------------------------------------------------
 fire_size <- fire %>% 
   mutate(area_categorical = case_when(
     acres < 1000 ~ "0-1,000",
@@ -117,10 +131,6 @@ fire_size <- fire %>%
                                                                      "10,000-20,000", "20,000-40,000", "40,000-100,000",
                                                                      "100,000-450,000"))) 
 
-fire_size$area_categorical <- ordered(fire_size$area_categorical, levels = c("0-1,000", "1,000-5,000", "5,000-10,000",
-                                                                             "10,000-20,000", "20,000-40,000", "40,000-100,000",
-                                                                             "100,000-450,000"))
-  
 # user interface ---------------------------------------------------------
 
 ui <- navbarPage(
@@ -172,13 +182,13 @@ server <- function(input, output) {
   
   #gganimate map for intro page
   #output$gganimate_map <- renderPlot({
-   # ggplot() +
-    #  geom_sf(data = ca_border, color = "grey80") +
-     # geom_sf(data = fire, fill = "red", alpha = 0.8, color = "red") +
-      #theme_classic() +
-      #theme_map() 
-      #labs(title = "Year: {frame_time}") +
-      #transition_time(year)
+    ggplot() +
+      geom_sf(data = ca_border, color = "grey80") +
+      geom_sf(data = fire, fill = "firebrick4", alpha = 0.8, color = "firebrick4") +
+      theme_classic() +
+      theme_map() 
+     # labs(title = "Year: {frame_time}") +
+     # transition_time(year)
   #})
   
 #data frame for the number of fires that occurred per decade grouped by fire size
@@ -192,8 +202,8 @@ server <- function(input, output) {
 #graph output for fire size per decade 
   output$area_graph <- renderPlot({
     ggplot(data = area_decades_count(), aes(x = decade, y = n)) + 
-      geom_col(fill = "red", alpha= 0.7) +
-      geom_errorbar(aes(x= decade, ymin = )) +
+      geom_col(fill = "firebrick4", alpha= 0.7) +
+     # geom_errorbar(aes(x= decade, ymin = )) +
       scale_x_discrete(expand = c(0,0),
                        drop = F) +
       scale_fill_discrete(drop = F) +
@@ -238,7 +248,7 @@ server <- function(input, output) {
   
   
   
-  # data frame for all fire causes
+# data frame for all fire causes
   fire_causes_count <- reactive({
       fire_causes %>% 
       filter(fire_cause %in% input$check_fire_causes) %>% 
@@ -248,9 +258,7 @@ server <- function(input, output) {
       count()
   })
   
-  y_axis_lim <- reactive({ fire_causes_count %>% summarize(max = max(n))})
-  
-  # graph for fire causes
+# graph for fire causes
   output$fire_causes_graph <- renderPlot({
     ggplot(data = fire_causes_count(), aes(x = year, y = n)) +
       geom_point(aes(color = fire_cause)) +
@@ -269,6 +277,7 @@ server <- function(input, output) {
  #   tm_shape(data = ca_border) +
  #     tm_fill(data = fire_causes_count())
  # })
+
 
   output$fire_causes_simplified_graph <- renderPlot({
     ggplot(data = fire_causes_simplified_count, aes(x = year, y = n)) +
@@ -289,9 +298,6 @@ server <- function(input, output) {
 shinyApp(ui = ui, server = server)
 
 
-  fire_causes_simplified_count <- fire_cause_simplified %>% 
-    group_by(year, fire_cause_simplified) %>% 
-    count()
 
   area_decades_count <- fire_size %>% 
       filter(area_categorical == "1,000-5,000") %>% 
