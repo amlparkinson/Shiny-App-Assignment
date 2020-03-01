@@ -93,6 +93,7 @@ fire_season_pre1969 <- fire_date %>%
 
 fire_season_post1970 <- fire_date %>% 
   filter(alarm_year %in% c(1970:2019)) %>% 
+  mutate(year = as.factor(year)) %>% 
   group_by(alarm_year) %>% 
   summarize(min_alarm = min(alarm_month),
             mean_alarm = mean(alarm_month),
@@ -107,16 +108,32 @@ ggplot(fire_season_post1970, aes(x = alarm_year, y = min_alarm)) +
   geom_line() +# try the stacked facet wrap
   geom_smooth(method = "lm")
 
+# doesnt look like anything has changed. probs too much annual variation. Look at average for a decade
+ggplot(fire_season_post1970, aes(x = alarm_month, y = decade)) +
+  geom_density_ridges(aes(fill = decade)) 
+ # scale_y_discrete(limits = rev(fire_season_post1970$decade)) # not working
+ggplot(fire_length, aes(x = length_of_fires, y = decade)) +
+  geom_density_ridges(aes(fill = decade)) 
+#ggplot(fire_season_post1970, aes(x = acres, y = decade)) +
+#  geom_density_ridges(aes(fill = decade)) # jnot helpful
+
+
+# 
+fire_season_post1970 <- fire_date %>% 
+  filter(alarm_year %in% c(1970:2019)) %>% 
+  mutate(year = as.factor(year)) %>% 
+  group_by(decade)
   
 # fire length  ------------------------------------------------------------
 fire_length_sub_pos<- fire_date %>% 
-  filter(length_of_fires >= 0)
+  filter(length_of_fires >= 0) 
 
 fire_length_sub_neg <- fire_date %>% 
   filter(length_of_fires < -100) %>% 
   mutate(length_of_fires = ((365 - alarm_day_of_year) + cont_day_of_year))
 
-fire_length <- rbind(fire_length_sub_pos, fire_length_sub_neg)
+fire_length <- rbind(fire_length_sub_pos, fire_length_sub_neg) %>% 
+  mutate(alarm_year = as.numeric(alarm_year))
 
 (cont_day_of_year - alarm_day_of_year)
 # toher sub data---------------------------------------

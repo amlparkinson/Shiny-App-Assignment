@@ -9,6 +9,7 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+can add usfs and nps boundaries
 ```{r}
 library(tidyverse)
 library(janitor)
@@ -29,23 +30,27 @@ ca_border <-  read_sf(here::here("Arc_data", "ca_state_border"), layer = "CA_Sta
 fire <- read_sf(here::here("Arc_data", "fire_perimeter_shpfile"), layer = "fire_perimeters" ) 
 
 
-fire <- fire %>% 
+fire_animate <- fire %>% 
   clean_names() %>%  
   filter(!is.na(year)) %>% 
-  filter(year %in% c("2000", '2008')) %>% 
+  mutate(year = as.numeric(year)) %>% 
+  filter(year >= 1930) %>% 
+  filter(year <= 1935) %>% 
   st_as_sf() %>% 
-  mutate (fire_name = str_to_title(fire_name)) %>% 
-  dplyr::filter (acres > 6000) %>% 
-  st_simplify(dTolerance = 100) %>% 
-  mutate(year = as.numeric(year))  
+  mutate (fire_name = str_to_title(fire_name))  %>% 
+  dplyr::filter (acres > 6000)  %>% 
+  group_by(year) %>% 
+  mutate(cumulative_acres_burned = cumsum(acres)) %>% 
+  ungroup(year)
+ # st_simplify(dTolerance = 100)  
+    
   
-ggplot(data = fire) +
+ggplot(data = fire_animate) +
     geom_sf(data = ca_border, color = "grey80") +
-    geom_sf(data = fire, fill = "red", alpha = 0.8, color = "red") +
+    geom_sf(data = fire_animate, fill = "red", alpha = 0.8, color = "red") +
     theme_classic() +
     theme_map() +
-    labs(title = "Year: {round(frame_time,0)}",
-         subtitle = "Acres Burned: {round(") +
+    labs(title = "Year: {round(frame_time,0)}")  +
     transition_time(year) +
     shadow_mark(alpha = 1)
 
@@ -57,3 +62,54 @@ st_crs(fire) #none
 error for map on first page: 'x' and 'units' must have length > 0 ; 
 Error in points[[1]] : subscript out of bounds
 
+
+#trial 2: use transition states. try to Use year as a factor instead of numeric for this
+```{r}
+
+fire_animate2 <- fire_animate %>% 
+  mutate(year = as.numeric(year)) 
+  mutate(year = as.factor(year))
+
+year_glue <- str_glue_data(fire_animate2, "Year: {year}")
+
+anim_plot <- ggplot(data = fire_animate2) +
+    geom_sf(data = ca_border, color = "grey80") +
+    geom_sf(data = fire_animate2, aes(fill = decade, color = decade), alpha = 0.8) +
+    theme_classic() +
+    theme_map() +
+    labs(title = "Year: {round(frame_time,0)}") +
+    #labs(subtitle = "Acres Burned: {} ")  +
+    transition_time(year) +
+   # transition_states(year) +
+    #labs(title = str_glue_data(fire_animate2, "Year: {year}")) +
+    ease_aes("linear") +
+    shadow_mark(alpha = 0.3)
+
+animate(anim_plot, fps = 10, end_pause = 30)
+
+```
+
+notes: 
+- transtition_states works too when year is a factor. But doesnt like the title changing
+- couldn't figure out how to tally acres burned
+
+
+
+error: Error in `$<-.data.frame`(`*tmp*`, "id", value = c(1L, 1L, 1L, 1L, 1L,  : 
+  replacement has 3568 rows, data has 3562
+checking to find which years cause error (only for polygons > 200 acres were checked): 
+ years >= 2010: okay!
+ years 2000 - 2009: okay
+ years 1990 - 1999: issue!!
+ years 1980 - 1989: issue with polygons <6000 acres (>6000 acres okay)
+ years 1970 - 1979: okay
+ years 1960 - 1969: okay!
+ years 1950 - 1959: okay!
+ years 1940 - 1949: okay!
+ years 1930 - 1939: issue!!; 1930-1935=ok
+ years 1920 - 1929: okay!
+ years 1910 - 1919: okay!
+ years 1900 - 1909: okay!
+ years 1880 - 1900: okay!
+ 
+ 

@@ -123,9 +123,9 @@ fire_size <- fire %>%
     acres < 500000 ~ "100,000-450,000"
   )) %>% 
   mutate(year = as.numeric(year)) %>% 
-  mutate(area_categorical = as.factor(area_categorical))  %>% 
   filter(!is.na(decade)) %>% 
   st_as_sf() %>% 
+  mutate(area_categorical = as.factor(area_categorical))  %>% 
   mutate(area_categorical = fct_relevel(area_categorical, levels = c("0-1,000", "1,000-5,000", "5,000-10,000",
                                                                      "10,000-20,000", "20,000-40,000", "40,000-100,000",
                                                                      "100,000-450,000"))) 
@@ -204,14 +204,13 @@ server <- function(input, output) {
     fire_size %>% 
       filter(area_categorical == input$select_area) %>% 
       group_by(decade, area_categorical) %>% 
-      summarize(n = sum())
+      count()
   })
   
 #graph output for fire size per decade 
   output$area_graph <- renderPlot({
     ggplot(data = area_decades_count(), aes(x = decade, y = n)) + 
       geom_col(fill = "firebrick4", alpha= 0.7) +
-     # geom_errorbar(aes(x= decade, ymin = )) +
       scale_x_discrete(expand = c(0,0),
                        drop = F) +
       scale_fill_discrete(drop = F) +
@@ -242,11 +241,11 @@ server <- function(input, output) {
       filter(area_categorical == input$select_area)
   })
   
-#  output$size_decades_map <- renderPlot({
-#    ggplot() +
-#      geom_sf(data = ca_border, color = "grey80") +
-#      geom_sf(data = size_decades_map_data(), aes(fill = decade), alpha = 0.8, color = "red")
-#  })
+  output$size_decades_map <- renderPlot({
+    ggplot() +
+      geom_sf(data = ca_border, color = "grey80") +
+      geom_sf(data = size_decades_map_data(), aes(fill = decade), alpha = 0.8, color = "red")
+  })
   
   #output$size_decades_map <- renderLeaflet({
   #   leaflet(size_decades_map_data)
@@ -364,6 +363,22 @@ shinyApp(ui = ui, server = server)
   
 
 
-
+  area_decades_count <- fire_size %>% 
+      filter(area_categorical == "1,000-5,000") %>% 
+      group_by(decade, area_categorical) %>% 
+      count()
+  
+  
+  #graph output for fire size per decade 
+  output$area_graph <-
+    ggplot(data = area_decades_count, aes(x = decade, y = n)) + 
+      geom_col(fill = "firebrick4", alpha= 0.7) +
+      scale_x_discrete(expand = c(0,0),
+                       drop = F) +
+      scale_fill_discrete(drop = F) +
+      scale_y_continuous(expand = c(0,0)) +
+      labs (x = "\nTime", y = "Number of Fires\n") +
+      theme_classic() +
+      theme(plot.margin = unit(c(5,5,5,5), "lines"))
 
 
