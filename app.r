@@ -6,7 +6,6 @@ library(here)
 library(janitor)
 library(lubridate)
 library(dplyr)
-library(kableExtra)
 
 # Shiny packages
 library(shiny)
@@ -106,11 +105,11 @@ fire_causes_simplified_count <- fire_cause_simplified %>%
 fire_causes_simplified_acres <- fire_cause_simplified %>% 
   group_by(year, fire_cause_simplified) %>% 
   summarise(yearly_acres_burned = sum(acres)) %>% 
-  st_drop_geometry() %>% 
-  dplyr::select(year, yearly_acres_burned)
+  st_drop_geometry() 
 
 #join data frames
-fire_causes_simplified_count_acres <- inner_join(fire_causes_simplified_count, fire_causes_simplified_acres, by = "year")
+fire_causes_simplified_count_acres <- inner_join(fire_causes_simplified_count, 
+                                                 fire_causes_simplified_acres, by = c("year", "fire_cause_simplified"))
 
 # data for fire sizes ---------------------------------------------------------------------------
 fire_size <- fire %>% 
@@ -140,6 +139,10 @@ ui <- navbarPage(
             h1("Title"),
             #mainPanel(plotOutput(outputId = "gganimate_map")),
             p("text")),
+   tabPanel("Fire Season",
+            h1("title")),
+   tabPanel("Fire Length",
+            h1("title")),
    tabPanel("Fire Size",
             h1("Title"),
             p("text"),
@@ -170,7 +173,11 @@ ui <- navbarPage(
                                   leafletOutput('fire_causes_map')))),
              tabPanel("Natural vs Human Caused",
                       sidebarLayout(
-                        sidebarPanel("text"),
+                        sidebarPanel("text",
+                                     radioButtons(inputId = "select_count_area",
+                                                  label = "Pick:",
+                                                  choices = c("Total Annual Fires" = "n",
+                                                              "Annual Acres Burned" = "yearly_acres_burned"))),
                         mainPanel("Graph Here",
                                   plotOutput(outputId = "fire_causes_simplified_graph"))
                       )))
@@ -278,17 +285,39 @@ server <- function(input, output) {
  #     tm_fill(data = fire_causes_count())
  # })
 
-
+  fire_causes_simplified_count_acres_select <- reactive({
+    fire_causes_simplified_count_acres %>% 
+      dplyr::select(input$select_count_area)
+      
+  })
+  
+  count_plot <- ggplot(data = fire_causes_simplified_count_acres, aes(x = year, y = n)) +
+    geom_point(aes(color = fire_cause_simplified)) +
+    geom_line(aes(color = fire_cause_simplified)) +
+    scale_color_discrete(name = "Cause") +
+    theme_minimal() +
+    scale_y_continuous(expand = c(0,0)) + 
+    scale_x_continuous(expand = c(0,0)) +
+    labs(x = "\nYear", y = "Number of Occurances\n")
+  
+  acres_plot <- ggplot(data = fire_causes_simplified_count_acres, aes(x = year, y = yearly_acres_burned)) +
+    geom_point(aes(color = fire_cause_simplified)) +
+    geom_line(aes(color = fire_cause_simplified)) +
+    scale_color_discrete(name = "Cause") +
+    theme_minimal() +
+    scale_y_continuous(expand = c(0,0)) + 
+    scale_x_continuous(expand = c(0,0)) +
+    labs(x = "\nYear", y = "Acres Burned\n") # add commas to y axis by installing scales package, then in scale y continous label = comma
+  
+  
   output$fire_causes_simplified_graph <- renderPlot({
-    ggplot(data = fire_causes_simplified_count, aes(x = year, y = n)) +
-      geom_point(aes(color = fire_cause_simplified)) +
-      geom_line(aes(color = fire_cause_simplified)) +
-      scale_color_discrete(name = "Cause") +
-      theme_minimal() +
-      scale_y_continuous(expand = c(0,0)) + 
-      scale_x_continuous(expand = c(0,0)) +
-      labs(x = "\nYear", y = "Number of Occurances\n")
-  }) # can try to make this reactive by looking at fire size (include all as an option, maybe create new column, then unite it and use str_detect in filter to inlcude all option)
+    
+   if(input$select_count_area == "Total Annual Fires") {ggplot(data = fire_cause_simplified_count_acres_select, aes(x = year, y = yearly_acres_burned)) +
+       geom_point(aes(color = fire_cause_simplified)) +
+       geom_line(aes(color = fire_cause_simplified))}
+  # if(input$select_count_area == "Annual Acres Burned") {print(acres_plot)}
+  
+    }) # can try to make this reactive by looking at fire size (include all as an option, maybe create new column, then unite it and use str_detect in filter to inlcude all option)
   
 }
   

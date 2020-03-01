@@ -40,7 +40,24 @@ plot(fire)
 
 # parse dates and calculate how many days the fire burned -----------------------------------   
 
-fire <- fire %>% 
+# how many data point have alarm date data?
+fire_count_alarm <- fire %>% 
+  drop_na(alarm_date)
+fire_count_cont <- fire %>% 
+  drop_na(cont_date)
+fire_count_alarm_cont <- fire %>% 
+  drop_na(alarm_date) %>% 
+  drop_na(cont_date)
+
+#range of data points
+min(fire_count_alarm_cont$year)
+max(fire_count_alarm_cont$year)
+ggplot(fire_count_alarm_cont, aes(x = year)) +
+  geom_histogram() # very few data points before 1950. can probably average those
+
+fire_date <- fire %>% 
+  drop_na(alarm_date) %>% 
+  drop_na(cont_date) %>% 
   mutate (alarm_year = lubridate::year(alarm_date), 
           alarm_month = lubridate::month(alarm_date),
           alarm_day = lubridate::day(alarm_date),
@@ -51,8 +68,23 @@ fire <- fire %>%
           cont_day_of_year = lubridate::yday(cont_date)) %>% 
   mutate (length_of_fires = (cont_day_of_year - alarm_day_of_year)) # doesnt account for fires that stated in one year, but ended in another
 
-#there's many missing dates. deal with this later
+
+
+
+# a few data points have containment day entered BEFORE the alarm date. remove those.
 # if (alarm_month = cont_month, then mutate(length_of_fire = (cont_day - alarm_day)(+1??))), else
+
+#fire season
+fire_season <- fire_date %>% 
+  filter(alarm_year < 2020) %>% 
+  group_by(alarm_year) %>% 
+  summarize(min_alarm = min(alarm_month),
+            mean_alarm = mean(alarm_month),
+            max_alarm = max(alarm_month),
+            sample_size = n())
+
+ggplot(fire_season, aes(x = alarm_year, y = mean_alarm)) +
+  geom_col() # try the stacked facet wrap
 
   fire_yearly_data <- fire %>% 
     drop_na(year) %>% 

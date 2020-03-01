@@ -23,6 +23,8 @@ sep="" use slider as widget andhave year recognized as a numeric. can use sep=""
 
 shiny does not like tables made in kable extra!, just user render table
 
+california= 101,676,000 acres
+
 other widgets (shiny idgets package)
 ```{r}
   numericRangeInput(inputId = "date_fire_causes",
