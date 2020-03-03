@@ -6,6 +6,7 @@ library(here)
 library(janitor)
 library(lubridate)
 library(dplyr)
+library(scales)
 
 # Shiny packages
 library(shiny)
@@ -130,6 +131,18 @@ fire_size <- fire %>%
                                                                      "10,000-20,000", "20,000-40,000", "40,000-100,000",
                                                                      "100,000-450,000"))) 
 
+# gganimate sub-data ---------------------------------------------------------------------------
+fire_animate <- fire %>% 
+  clean_names() %>%  
+  filter(!is.na(year)) %>% 
+  mutate(year = as.numeric(year)) %>% 
+  filter(year >= 1900) %>% 
+  filter(year <= 1935) %>% 
+  st_as_sf() %>% 
+  mutate (fire_name = str_to_title(fire_name))  %>% 
+  dplyr::filter (acres > 6000)  %>% 
+  mutate(year = as.numeric(year)) 
+
 # user interface ---------------------------------------------------------
 
 ui <- navbarPage(
@@ -137,7 +150,7 @@ ui <- navbarPage(
    theme = shinytheme("united"),
    tabPanel("Fire History",
             h1("Title"),
-            #mainPanel(plotOutput(outputId = "gganimate_map")),
+           # mainPanel(plotOutput(outputId = "gganimate_map")),
             p("text")),
    tabPanel("Fire Season",
             h1("title")),
@@ -170,7 +183,7 @@ ui <- navbarPage(
                                                  sep = "")),
                         mainPanel("Graph and Table Here",
                                   plotOutput(outputId = "fire_causes_graph"),
-                                  leafletOutput('fire_causes_map'),
+                                  #leafletOutput('fire_causes_map'),
                                   tableOutput(outputId = 'fire_causes_table')))),
              tabPanel("Natural vs Human Caused",
                       sidebarLayout(
@@ -188,16 +201,23 @@ ui <- navbarPage(
 
 server <- function(input, output) {
   
-  #gganimate map for intro page
-  #output$gganimate_map <- renderPlot({
-    ggplot() +
+#gganimate map for intro page
+  output$gganimate_map <- renderPlot({
+    anim_plot <- ggplot(data = fire_animate) +
       geom_sf(data = ca_border, color = "grey80") +
-      geom_sf(data = fire, fill = "firebrick4", alpha = 0.8, color = "firebrick4") +
+      geom_sf(data = fire_animate, aes(fill = decade, color = decade), alpha = 0.8) +
       theme_classic() +
-      theme_map() 
-     # labs(title = "Year: {frame_time}") +
-     # transition_time(year)
-  #})
+      theme_map() +
+      labs(title = "Year: {round(frame_time,0)}") +
+      #labs(subtitle = "Acres Burned: {} ")  +
+      transition_time(year) +
+      # transition_states(year) +
+      #labs(title = str_glue_data(fire_animate2, "Year: {year}")) +
+      ease_aes("linear") +
+      shadow_mark(alpha = 0.3)
+    
+    animate(anim_plot, fps = 10, end_pause = 30)
+  })
   
 #data frame for the number of fires that occurred per decade grouped by fire size
   area_decades_count <- reactive({
@@ -247,13 +267,6 @@ server <- function(input, output) {
       geom_sf(data = size_decades_map_data(), aes(fill = decade), alpha = 0.8, color = "red")
   })
   
-  #output$size_decades_map <- renderLeaflet({
-  #   leaflet(size_decades_map_data)
-  #})
-  
-  
-  
-  
   
 # data frame for all fire causes
   fire_causes_count <- reactive({
@@ -265,14 +278,6 @@ server <- function(input, output) {
       count()
   })
   
-  fire_causes_count_sum <- reactive ({
-    fire_causes %>% 
-      filter(fire_cause %in% input$check_fire_causes) %>% 
-      filter(year >= input$date_fire_causes1[1]) %>%
-      filter(year <= input$date_fire_causes1[2]) %>% 
-      group_by(fire_cause) %>% 
-      summarise(sum_fires = n())
-  })
 # graph for fire causes
   output$fire_causes_graph <- renderPlot({
     ggplot(data = fire_causes_count(), aes(x = year, y = n)) +
@@ -285,51 +290,71 @@ server <- function(input, output) {
       scale_y_continuous(expand = c(0,0)) + #limits = c(0,max(variable)+10); input$date_fire_causes1[2], max(fire_causes_count$year)
       scale_x_continuous(expand = c(0,0)) 
   })
+
+# sum fire occurances and acres burned
+  fire_causes_count_sum <- reactive ({
+    fire_causes %>% 
+      filter(fire_cause %in% input$check_fire_causes) %>% 
+      filter(year >= input$date_fire_causes1[1]) %>%
+      filter(year <= input$date_fire_causes1[2]) %>% 
+      group_by(fire_cause) %>% 
+      summarise(sum_fires = n(),
+                sum_acres = sum(acres)) %>% 
+      mutate(sum_acres = format(round(sum_acres), big.mark=","),
+             sum_fires = format(sum_fires, big.mark=",")) %>% 
+      st_drop_geometry() %>% 
+      rename("Total Fire Occurances" = sum_fires,
+             "Total Acres Burned" = sum_acres,
+             "Fire Cause" = fire_cause)
+  })
   
 # table for total fire causes
   output$fire_causes_table <- renderTable({
-    fire_causes_count_sum
+    fire_causes_count_sum()
   })
   #map for fire causes
  # output$fire_causes_map <- renderLeaflet({
  #   tm_shape(data = ca_border) +
  #     tm_fill(data = fire_causes_count())
  # })
-
-  fire_causes_simplified_count_acres_select <- reactive({
-    fire_causes_simplified_count_acres %>% 
-      dplyr::select(input$select_count_area)
-      
-  })
-  
   count_plot <- ggplot(data = fire_causes_simplified_count_acres, aes(x = year, y = n)) +
-    geom_point(aes(color = fire_cause_simplified)) +
-    geom_line(aes(color = fire_cause_simplified)) +
-    scale_color_discrete(name = "Cause") +
+    #geom_point(aes(color = fire_cause_simplified)) +
+    geom_line(aes(color = fire_cause_simplified), show.legend = F) +
+    geom_area(aes(fill= fire_cause_simplified), position ="identity") + # position="idendity" = critical componenet. otherwise the colored area is VERY off
+    scale_fill_discrete(name = "Cause") +
     theme_minimal() +
-    scale_y_continuous(expand = c(0,0)) + 
-    scale_x_continuous(expand = c(0,0)) +
+    scale_y_continuous(expand = c(0,0),
+                       lim = c(0, 125)) + 
+    scale_x_continuous(expand = c(0,0),
+                       lim = c(1910, 2020)) +
     labs(x = "\nYear", y = "Number of Occurances\n")
   
   acres_plot <- ggplot(data = fire_causes_simplified_count_acres, aes(x = year, y = yearly_acres_burned)) +
-    geom_point(aes(color = fire_cause_simplified)) +
-    geom_line(aes(color = fire_cause_simplified)) +
-    scale_color_discrete(name = "Cause") +
+   # geom_point(aes(color = fire_cause_simplified)) +
+    geom_line(aes(color = fire_cause_simplified), show.legend = F) +
+    geom_area(aes(fill= fire_cause_simplified), position ="identity") +
+    scale_fill_discrete(name = "Cause") +
     theme_minimal() +
-    scale_y_continuous(expand = c(0,0)) + 
-    scale_x_continuous(expand = c(0,0)) +
-    labs(x = "\nYear", y = "Acres Burned\n") # add commas to y axis by installing scales package, then in scale y continous label = comma
+    scale_y_continuous(expand = c(0,0),
+                       label = comma,
+                       lim = c(0, 1250000)) + 
+    scale_x_continuous(expand = c(0,0),
+                       lim = c(1910, 2020)) +
+    labs(x = "\nYear", y = "Acres Burned\n") 
+
+  fire_causes_simplified_count_acres_select <- reactive({
+    
+    if(input$select_count_area == "Total Annual Fires") {print(count_plot)}
+     else {print(acres_plot)}
+    #if(input$select_count_area == "Annual Acres Burned") {print(acres_plot)}
+      
+  })
+  
   
   
   output$fire_causes_simplified_graph <- renderPlot({
     
-   if(input$select_count_area == "Total Annual Fires") {
-     print(ggplot(data = fire_cause_simplified_count_acres_select, 
-            aes(x = year, y = yearly_acres_burned)) +
-       geom_point(aes(color = fire_cause_simplified)) +
-       geom_line(aes(color = fire_cause_simplified)))}
-    else {print("No")}
-  # if(input$select_count_area == "Annual Acres Burned") {print(acres_plot)}
+    fire_causes_simplified_count_acres_select()
   
     }) # can try to make this reactive by looking at fire size (include all as an option, maybe create new column, then unite it and use str_detect in filter to inlcude all option)
   
@@ -342,43 +367,35 @@ shinyApp(ui = ui, server = server)
 
 
 
-  area_decades_count <- fire_size %>% 
-      filter(area_categorical == "1,000-5,000") %>% 
-      group_by(decade, area_categorical) %>% 
-      summarize(n = sum())
+
 ##issues
 # # dropped decades for largest size class
 # either mutate fct_relevel or ordered/factor() works to assign levels (even though get the unnamed scalar inpus error using mutate fct_relevel, it still works). but levels show up as unordered numbers in the shiny app bc theyre recognized as factor class, but they appear as their actual names when the class is a character but the levels are unordered
-  # fix was to manually enter the size classes
+# fix was to manually enter the size classes
+# if else produces one of the graphs. If if statement produces none. Same if put the if statement in the reactive and the data() in the render
+# ggplot doesnt appear in app
+# error with fire sizes table for lightening: Evaluation error: TopologyException: Input geom 1 is invalid: Ring Self-intersection at or near point -123.72272736189028 41.591593843466249 at -123.72272736189028 41.591593843466249.
   
 ## to do
 # add percentages at top of bars for fire size graph?
 
 
-  
 
-  ggplot() +
-    geom_sf(data = ca_border, color = "grey80") +
-    geom_sf(data = fire_sub, aes(fill = YEAR_), color = NA, alpha = 0.5)
-  
-
-
-  area_decades_count <- fire_size %>% 
-      filter(area_categorical == "1,000-5,000") %>% 
-      group_by(decade, area_categorical) %>% 
-      count()
-  
-  
-  #graph output for fire size per decade 
-  output$area_graph <-
-    ggplot(data = area_decades_count, aes(x = decade, y = n)) + 
-      geom_col(fill = "firebrick4", alpha= 0.7) +
-      scale_x_discrete(expand = c(0,0),
-                       drop = F) +
-      scale_fill_discrete(drop = F) +
-      scale_y_continuous(expand = c(0,0)) +
-      labs (x = "\nTime", y = "Number of Fires\n") +
-      theme_classic() +
-      theme(plot.margin = unit(c(5,5,5,5), "lines"))
-
+  fire_causes_count_sum <-  fire_causes %>% 
+      filter(fire_cause == "Unknown") %>% 
+      filter(year >= 2000) %>%
+     # filter(year <= input$date_fire_causes1[2]) %>% 
+      group_by(fire_cause) %>% 
+      summarise(sum_fires = n(),
+                sum_acres = sum(acres)) %>% 
+    mutate(sum_acres = format(round(sum_acres), big.mark=","),
+           sum_fires = format(sum_fires, big.mark=",")) %>% 
+      st_drop_geometry() %>% 
+    rename("Total Fire Occurances" = sum_fires,
+           "Total Acres Burned" = sum_acres,
+           "Fire Cause" = fire_cause)
+  head(fire_causes_count_sum)
+    # table for total fire causes
+  output$fire_causes_table <- renderTable({
+    fire_causes_count_sum()
 

@@ -11,7 +11,7 @@ library(tmap)
 library(lubridate)
 library(dplyr)
 library(lwgeom)
-
+library(ggridges)
 # load data ---------------------------------------------------------
 
 ca_border <-  read_sf(here::here("Arc_data", "ca_state_border"), layer = "CA_State_TIGER2016")
@@ -66,12 +66,22 @@ fire_date <- fire %>%
           cont_month = lubridate::month(cont_date),
           cont_day = lubridate::day(cont_date), 
           cont_day_of_year = lubridate::yday(cont_date)) %>% 
-  mutate (length_of_fires = (cont_day_of_year - alarm_day_of_year)) # doesnt account for fires that stated in one year, but ended in another
+  mutate (length_of_fires = (cont_day_of_year - alarm_day_of_year)) %>%  # doesnt account for fires that stated in one year, but ended in another
+  mutate (decade = case_when(
+    year < 1939 ~ "1920s-1930s", # combine 1920s adn 1930s data
+    year < 1949 ~ "1940s",
+    year < 1959 ~ "1950s",
+    year < 1969 ~ "1960s",
+    year < 1979 ~ "1970s",
+    year < 1989 ~ "1980s",
+    year < 1999 ~ "1990s",
+    year < 2009 ~ "2000s",
+    year < 2019 ~ "2010s"
+  )) # no alarm date for fires before 1920s
 
+fire_count <- fire_date %>% group_by(decade) %>% count()
 
-
-
-# a few data points have containment day entered BEFORE the alarm date. remove those.
+# very few data points have containment day entered BEFORE the alarm date. remove those.
 # if (alarm_month = cont_month, then mutate(length_of_fire = (cont_day - alarm_day)(+1??))), else
 
 #fire season. very few fires from before 1970 had complete record of alarm adn containment dates, so combined those into two grpups (1920s-1939, 1940-1969)
@@ -97,6 +107,7 @@ fire_season_post1970 <- fire_date %>%
   group_by(alarm_year) %>% 
   summarize(min_alarm = min(alarm_month),
             mean_alarm = mean(alarm_month),
+            median_alarm = median(alarm_month),
             max_alarm = max(alarm_month),
             sample_size = n()) 
 
@@ -104,12 +115,12 @@ fire_season_summary <- rbind(fire_season_pre1939, fire_season_pre1969, fire_seas
 fire_season_summary <- fire_season_summary %>% 
   mutate(alarm_year = as.numeric(alarm_year))
 
-ggplot(fire_season_post1970, aes(x = alarm_year, y = min_alarm)) +
+ggplot(fire_season_post1970, aes(x = alarm_year, y = mean_alarm)) +
   geom_line() +# try the stacked facet wrap
   geom_smooth(method = "lm")
 
 # doesnt look like anything has changed. probs too much annual variation. Look at average for a decade
-ggplot(fire_season_post1970, aes(x = alarm_month, y = decade)) +
+ggplot(fire_date, aes(x = alarm_month, y = decade)) +
   geom_density_ridges(aes(fill = decade)) 
  # scale_y_discrete(limits = rev(fire_season_post1970$decade)) # not working
 ggplot(fire_length, aes(x = length_of_fires, y = decade)) +
@@ -136,6 +147,11 @@ fire_length <- rbind(fire_length_sub_pos, fire_length_sub_neg) %>%
   mutate(alarm_year = as.numeric(alarm_year))
 
 (cont_day_of_year - alarm_day_of_year)
+
+
+plot_length_data <- fire_length %>% 
+  filter(length_of_fires > 60)
+plot(plot_length_data)
 # toher sub data---------------------------------------
 fire_yearly_data <- fire %>% 
     drop_na(year) %>% 
@@ -168,15 +184,7 @@ fire_yearly_data <- fire %>%
       acres < 500000 ~ "100,000-450,000"
     ))
   
-# gganimate -------------------------------------------------------------------------------------
-
-ggplot() +
-    #geom_sf(data = ca_border, color = "grey80") +
-    geom_sf(data = fire, fill = "red", alpha = 0.8, color = "red") +
-    theme_classic() +
-    theme_map() +
-    labs(title = "Year: {frame_time}") +
-    transition_time(year)# not working. Error: stat_sf requires the following missing aesthetics: geometry
+# map -------------------------------------------------------------------------------------
 
 ca_fires_tmap <- tm_basemap("Esri.WorldImagery") +
   tm_shape(fire_causes) +
@@ -239,36 +247,3 @@ fire_causes <- fire2 %>%
   st_make_valid()
 
 
-# count 
-fire_causes_simplified_count <- fire_causes %>% 
-  group_by(fire_cause_simplified, year) %>% 
-  count()
-
-# kable extra
-fire_causes_simplified_count %>% 
-  kable(col.names = c("Cause", "Count"), align = 'c') %>% 
-  kable_styling(
-    bootstrap_options = c("striped", "hover", "condensed", "respsonsive"),
-    full_width = T,
-    position = "center"
-  )
-  
-  
-
-# graph
-ggplot(data = fire_causes, aes(x = fire_cause)) +
-  geom_bar(fill = "dark red") +
-  coord_flip() +
-  labs (x = NULL,
-        y = NULL,
-        title = 'TBD') +
-  theme_bw() +
-  scale_y_continuous(expand=c(0,0)) +
-  scale_x_discrete(expand=c(0,0)) 
-  #geom_text(aes(label = ))) # is there a way to add label over the bars to display their count? maybe can do this when have reactive data? maybe can set up the data frame to be based off of a table and can use the count from there
-  
-
-# dist of acreage ----------------------------------------------------
-
-ggplot(fire, aes(x = acres)) +
-  geom_histogram()
