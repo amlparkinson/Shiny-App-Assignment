@@ -111,7 +111,9 @@ fire_causes_simplified_acres <- fire_cause_simplified %>%
 #join data frames
 fire_causes_simplified_count_acres <- inner_join(fire_causes_simplified_count, 
                                                  fire_causes_simplified_acres, by = c("year", "fire_cause_simplified"))
-
+fire_simplified_count_acres_pivot <- fire_causes_simplified_count_acres %>% 
+  pivot_longer(n, yearly_acres_burned,
+               names_to = )
 # data for fire sizes ---------------------------------------------------------------------------
 fire_size <- fire %>% 
   mutate(area_categorical = case_when(
@@ -217,6 +219,7 @@ server <- function(input, output) {
       shadow_mark(alpha = 0.3)
     
     animate(anim_plot, fps = 10, end_pause = 30)
+    #ssave as gif and call that
   })
   
 #data frame for the number of fires that occurred per decade grouped by fire size
@@ -342,31 +345,53 @@ server <- function(input, output) {
                        lim = c(1910, 2020)) +
     labs(x = "\nYear", y = "Acres Burned\n") 
 
-  fire_causes_simplified_count_acres_select <- reactive({
-    
-    if(input$select_count_area == "Total Annual Fires") {print(count_plot)}
-     else {print(acres_plot)}
-    #if(input$select_count_area == "Annual Acres Burned") {print(acres_plot)}
-      
+ 
+  fire_causes_simplified_count_acres_select <- reactive ({
+    fire_causes_simplified_count_acres %>% 
+      select(-input$select_count_area)
   })
   
-  
-  
   output$fire_causes_simplified_graph <- renderPlot({
-    
-    fire_causes_simplified_count_acres_select()
-  
-    }) # can try to make this reactive by looking at fire size (include all as an option, maybe create new column, then unite it and use str_detect in filter to inlcude all option)
-  
+    ggplot(data = fire_causes_simplified_count_acres, aes(x = year, y = input$select_count_area)) +
+      # geom_point(aes(color = fire_cause_simplified)) +
+      geom_line(aes(color = fire_cause_simplified), show.legend = F) +
+      geom_area(aes(fill= fire_cause_simplified), position ="identity")
+  })
 }
   
+
+
   
 #run shiny app --------------------------------------------------------------
 
 shinyApp(ui = ui, server = server)
 
+#trial 
+fire_causes_simplified_count_acres_select <- reactive ({
+  (input$select_count_area)
+})
+output$fire_causes_simplified_graph <- renderPlot({
+  if(fire_causes_simplified_count_acres_select() == "Total Annual Fires") {print(count_plot)}
+  else {print(acres_plot)}
+})
 
+# trial 1
+fire_causes_simplified_count_acres_select <- reactive({
+  if(input$select_count_area == "Total Annual Fires") {print(count_plot)}
+  else {print(acres_plot)}
+  #if(input$select_count_area == "Annual Acres Burned") {print(acres_plot)}
+})
+output$fire_causes_simplified_graph <- renderPlot({
+  fire_causes_simplified_count_acres_select()
+}) 
 
+#trial 2
+fire_causes_simplified_count_acres_select <- reactive ({input$select_count_area})
+
+output$fire_causes_simplified_graph <- renderPlot({
+  if(fire_causes_simplified_count_acres_select() == "Total Annual Fires") {print(count_plot)}
+  else {print(acres_plot)}
+})
 
 ##issues
 # # dropped decades for largest size class

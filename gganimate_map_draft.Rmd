@@ -34,7 +34,7 @@ fire_animate <- fire %>%
   clean_names() %>%  
   filter(!is.na(year)) %>% 
   mutate(year = as.numeric(year)) %>% 
-  filter(year >= 1930) %>% 
+  filter(year >= 1910) %>% 
   filter(year <= 1935) %>% 
   st_as_sf() %>% 
   mutate (fire_name = str_to_title(fire_name))  %>% 
@@ -97,6 +97,7 @@ notes:
 
 error: Error in `$<-.data.frame`(`*tmp*`, "id", value = c(1L, 1L, 1L, 1L, 1L,  : 
   replacement has 3568 rows, data has 3562
+  
 checking to find which years cause error (only for polygons > 200 acres were checked): 
  years >= 2010: okay!
  years 2000 - 2009: okay
@@ -112,4 +113,6 @@ checking to find which years cause error (only for polygons > 200 acres were che
  years 1900 - 1909: okay!
  years 1880 - 1900: okay!
  
+ 
+ get dubpes (janitor package): is there duplicates of polygons. polygond have the same ID?
  
