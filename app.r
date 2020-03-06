@@ -15,13 +15,14 @@ library(shinydashboard)
 library(shinyWidgets)
 library(leaflet)
 
-# Map packages
+# Map and graph packages
 library(sf) 
 library(gganimate)
 library(transformr) #need?
 library(magick) #need?
 library(tmap)
 library(ggthemes)
+library(ggridges)
 
 # add data ----------------------------------------------------------------
 
@@ -58,7 +59,121 @@ fire <- fire_raw %>%
   mutate(year = as.numeric(year))
   
 
-# data for fire causes --------------------
+# sub data for fire length and season -------------------------------------
+
+fire_date <- fire %>% 
+  drop_na(alarm_date) %>% 
+  drop_na(cont_date) %>% 
+  mutate (alarm_year = lubridate::year(alarm_date), 
+          alarm_month = lubridate::month(alarm_date),
+          alarm_day = lubridate::day(alarm_date),
+          alarm_day_of_year = lubridate::yday(alarm_date), #** convert mm/dd/yyyy to day of the year(0-365)
+          cont_year = lubridate::year(cont_date), 
+          cont_month = lubridate::month(cont_date),
+          cont_day = lubridate::day(cont_date), 
+          cont_day_of_year = lubridate::yday(cont_date)) %>% 
+  mutate (length_of_fires = (cont_day_of_year - alarm_day_of_year)) %>%  # doesnt account for fires that stated in one year, but ended in another
+  mutate (decade = case_when(
+    year < 1939 ~ "1920s-1930s", # combine 1920s adn 1930s data
+    year < 1949 ~ "1940s",
+    year < 1959 ~ "1950s",
+    year < 1969 ~ "1960s",
+    year < 1979 ~ "1970s",
+    year < 1989 ~ "1980s",
+    year < 1999 ~ "1990s",
+    year < 2009 ~ "2000s",
+    year < 2019 ~ "2010s"
+  )) # no alarm date for fires before 1920s
+
+fire_season_post1970 <- fire_date %>% 
+  filter(alarm_year %in% c(1970:2019)) %>% 
+  mutate(year = as.factor(year)) %>% 
+  group_by(alarm_year) %>% 
+  summarize(min_alarm = min(alarm_month),
+            mean_alarm = mean(alarm_month),
+            max_alarm = max(alarm_month),
+            sample_size = n()) 
+
+mean_season <- ggplot(fire_season_post1970, aes(x = alarm_year, y = mean_alarm)) +
+  geom_line() +# try the stacked facet wrap
+  geom_smooth(method = "lm") +
+  theme_minimal() +
+  scale_x_continuous(expand = c(0,0)) +
+  scale_y_continuous(expand = c(0,0),
+                     lim = c(5, 9),
+                     breaks = seq(5, 9, by = 1),
+                     labels = c("May", "Jun", "Jul", "Aug", "Sep")) +
+  labs(x = "", y = "Average Fire Start Month\n")
+
+min_season <-  ggplot(fire_season_post1970, aes(x = alarm_year, y = min_alarm)) +
+  geom_line() +# try the stacked facet wrap
+  geom_smooth(method = "lm") +
+  theme_minimal() +
+  scale_x_continuous(expand = c(0,0)) +
+  scale_y_continuous(expand = c(0,0),
+                     lim = c(1, 8),
+                     breaks = seq(1, 8, by = 1),
+                     labels = c("Jan", "Feb","Mar","Apr", "May", "Jun", "Jul", "Aug")) +
+  labs(x = "", y = "Earliest Fire Start Month\n")
+
+max_season <- ggplot(fire_season_post1970, aes(x = alarm_year, y = max_alarm)) +
+  geom_line() +# try the stacked facet wrap
+  geom_smooth(method = "lm") +
+  theme_minimal() +
+  scale_x_continuous(expand = c(0,0)) +
+  scale_y_continuous(expand = c(0,0),
+                     lim = c(6, 12),
+                     breaks = seq(6, 12, by = 1),
+                     labels = c("Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")) +
+  labs(x = "", y = "Latest Fire Start Month\n")
+
+season_ggridges <- ggplot(fire_date, aes(x = alarm_month, y = decade)) +
+  geom_density_ridges(aes(fill = decade), show.legend = F) +
+  labs(x = "Fire Start Month", y = "") +
+  theme_minimal() +
+  scale_x_continuous(expand = c(0,0),
+                     lim = c(1, 12),
+                     breaks = seq(1,12, by = 1), 
+                     labels = c("Jan", "Feb","Mar","Apr", "May","Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")) +
+  scale_y_discrete(expand = c(0,0)) 
+
+# fire length -------------------------------------------------------------
+
+fire_length_sub_pos<- fire_date %>% 
+  filter(length_of_fires >= 0) 
+fire_length_sub_neg <- fire_date %>% 
+  filter(length_of_fires < -100) %>% 
+  mutate(length_of_fires = ((365 - alarm_day_of_year) + cont_day_of_year))
+fire_length <- rbind(fire_length_sub_pos, fire_length_sub_neg) %>% 
+  mutate(alarm_year = as.numeric(alarm_year))
+
+fire_length_no_outliers <- fire_length %>% 
+  filter(length_of_fires < 100)
+
+length_no_outliers <- ggplot(fire_length_no_outliers, aes(x = length_of_fires, y = decade)) +
+  geom_density_ridges(aes(fill = decade), show.legend = F) +
+  labs(x = 'Length of Fires', y= "") +
+  theme_minimal() +
+  scale_x_continuous(expand = c(0,0)) +
+  scale_y_discrete(expand = c(0,0))
+
+length_all <- ggplot(fire_length, aes(x = length_of_fires, y = decade)) +
+  geom_density_ridges(aes(fill = decade), show.legend = F) +
+  labs(x = 'Length of Fires', y= "") +
+  theme_minimal() +
+  scale_x_continuous(expand = c(0,0)) +
+  scale_y_discrete(expand = c(0,0))
+
+length_season <- ggplot(fire_length, aes(x = alarm_month, y = length_of_fires)) +
+  geom_point() +
+  theme_minimal() +
+  labs(x = "\nFire Start Month", y = "Length of Fires\n") +
+  scale_x_continuous(expand = c(0,0),
+                     lim = c(1, 12),
+                     breaks = seq(1,12, by = 1),
+                     labels = c("Jan", "Feb","Mar","Apr", "May","Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"))  +
+  scale_y_continuous(expand = c(0,0)) 
+# data for fire causes ------------------------------------------------------
 fire_causes <- fire %>%
   mutate(fire_cause = case_when(
     cause == 0 ~ "Unknown",
@@ -114,6 +229,32 @@ fire_causes_simplified_count_acres <- inner_join(fire_causes_simplified_count,
 fire_simplified_count_acres_pivot <- fire_causes_simplified_count_acres %>% 
   pivot_longer(n, yearly_acres_burned,
                names_to = )
+
+# graphs for server
+count_plot <- ggplot(data = fire_causes_simplified_count_acres, aes(x = year, y = n)) +
+  #geom_point(aes(color = fire_cause_simplified)) +
+  geom_line(aes(color = fire_cause_simplified), show.legend = F) +
+  geom_area(aes(fill= fire_cause_simplified), position ="identity") + # position="idendity" = critical componenet. otherwise the colored area is VERY off
+  scale_fill_discrete(name = "Cause") +
+  theme_minimal() +
+  scale_y_continuous(expand = c(0,0),
+                     lim = c(0, 125)) + 
+  scale_x_continuous(expand = c(0,0),
+                     lim = c(1910, 2020)) +
+  labs(x = "\nYear", y = "Number of Occurances\n")
+
+acres_plot <- ggplot(data = fire_causes_simplified_count_acres, aes(x = year, y = yearly_acres_burned)) +
+  # geom_point(aes(color = fire_cause_simplified)) +
+  geom_line(aes(color = fire_cause_simplified), show.legend = F) +
+  geom_area(aes(fill= fire_cause_simplified), position ="identity") +
+  scale_fill_discrete(name = "Cause") +
+  theme_minimal() +
+  scale_y_continuous(expand = c(0,0),
+                     label = comma,
+                     lim = c(0, 1250000)) + 
+  scale_x_continuous(expand = c(0,0),
+                     lim = c(1910, 2020)) +
+  labs(x = "\nYear", y = "Acres Burned\n") 
 # data for fire sizes ---------------------------------------------------------------------------
 fire_size <- fire %>% 
   mutate(area_categorical = case_when(
@@ -155,9 +296,27 @@ ui <- navbarPage(
            # mainPanel(plotOutput(outputId = "gganimate_map")),
             p("text")),
    tabPanel("Fire Season",
-            h1("title")),
+            h1("title"),
+            p("text"),
+            sidebarLayout(
+              sidebarPanel(pickerInput(inputId = "select_summary_stat",
+                                        label = "Select Summary Statistic to Explore",
+                                        choices = c("min_alarm", "mean_alarm", "max_alarm", "all_decade"),
+                                        options(list(style = "btn-danger")))),
+              mainPanel("Graph here",
+                        plotOutput(outputId = "season_summary_graph"),
+                        plotOutput(outputId = "season_ggridges_graph"))
+              )),
    tabPanel("Fire Length",
-            h1("title")),
+            h1("title"),
+            p("text"),
+            sidebarLayout(
+              sidebarPanel(pickerInput(inputId = "select_stat",
+                                       label = "Select",
+                                       choices = c("length_graph_all", "length_graph_no_outliers", "length_and_season"))),
+              mainPanel("graph here",
+                        plotOutput(outputId = "fire_length_graph"))
+                )),
    tabPanel("Fire Size",
             h1("Title"),
             p("text"),
@@ -221,6 +380,22 @@ server <- function(input, output) {
     animate(anim_plot, fps = 10, end_pause = 30)
     #ssave as gif and call that
   })
+  
+# output for summary stats of fire season
+  output$season_summary_graph <- renderPlot({
+    if (input$select_summary_stat == "min_alarm") {print(min_season)}
+    if (input$select_summary_stat == "mean_alarm") {print(mean_season)}
+    if (input$select_summary_stat == "max_alarm") {print(max_season)}
+    if (input$select_summary_stat == "all_decade") {print(season_ggridges)}
+  })
+ 
+# output for fire length 
+  output$fire_length_graph <- renderPlot ({
+    if(input$select_stat == "length_graph_all") {print(length_all)}
+    if(input$select_stat == "length_graph_no_outliers") {print(length_no_outliers)}
+    if(input$select_stat == "length_and_season") {print(length_season)}
+  })
+
   
 #data frame for the number of fires that occurred per decade grouped by fire size
   area_decades_count <- reactive({
@@ -320,42 +495,12 @@ server <- function(input, output) {
  #   tm_shape(data = ca_border) +
  #     tm_fill(data = fire_causes_count())
  # })
-  count_plot <- ggplot(data = fire_causes_simplified_count_acres, aes(x = year, y = n)) +
-    #geom_point(aes(color = fire_cause_simplified)) +
-    geom_line(aes(color = fire_cause_simplified), show.legend = F) +
-    geom_area(aes(fill= fire_cause_simplified), position ="identity") + # position="idendity" = critical componenet. otherwise the colored area is VERY off
-    scale_fill_discrete(name = "Cause") +
-    theme_minimal() +
-    scale_y_continuous(expand = c(0,0),
-                       lim = c(0, 125)) + 
-    scale_x_continuous(expand = c(0,0),
-                       lim = c(1910, 2020)) +
-    labs(x = "\nYear", y = "Number of Occurances\n")
-  
-  acres_plot <- ggplot(data = fire_causes_simplified_count_acres, aes(x = year, y = yearly_acres_burned)) +
-   # geom_point(aes(color = fire_cause_simplified)) +
-    geom_line(aes(color = fire_cause_simplified), show.legend = F) +
-    geom_area(aes(fill= fire_cause_simplified), position ="identity") +
-    scale_fill_discrete(name = "Cause") +
-    theme_minimal() +
-    scale_y_continuous(expand = c(0,0),
-                       label = comma,
-                       lim = c(0, 1250000)) + 
-    scale_x_continuous(expand = c(0,0),
-                       lim = c(1910, 2020)) +
-    labs(x = "\nYear", y = "Acres Burned\n") 
-
  
-  fire_causes_simplified_count_acres_select <- reactive ({
-    fire_causes_simplified_count_acres %>% 
-      select(-input$select_count_area)
-  })
-  
+
+
   output$fire_causes_simplified_graph <- renderPlot({
-    ggplot(data = fire_causes_simplified_count_acres, aes(x = year, y = input$select_count_area)) +
-      # geom_point(aes(color = fire_cause_simplified)) +
-      geom_line(aes(color = fire_cause_simplified), show.legend = F) +
-      geom_area(aes(fill= fire_cause_simplified), position ="identity")
+    if(input$select_count_area == "n") {print(count_plot)}
+    else {print(acres_plot)}
   })
 }
   
@@ -370,9 +515,14 @@ shinyApp(ui = ui, server = server)
 fire_causes_simplified_count_acres_select <- reactive ({
   (input$select_count_area)
 })
+
+fire_causes_simplified_count_acres_select <- reactive ({
+  fire_causes_simplified_count_acres %>% 
+    select(-input$select_count_area)
+})
+
 output$fire_causes_simplified_graph <- renderPlot({
-  if(fire_causes_simplified_count_acres_select() == "Total Annual Fires") {print(count_plot)}
-  else {print(acres_plot)}
+  
 })
 
 # trial 1

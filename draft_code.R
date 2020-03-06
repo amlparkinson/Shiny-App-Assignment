@@ -77,12 +77,12 @@ fire_date <- fire %>%
     year < 1999 ~ "1990s",
     year < 2009 ~ "2000s",
     year < 2019 ~ "2010s"
-  )) # no alarm date for fires before 1920s
-
+  )) %>%  # no alarm date for fires before 1920s
+  mutate(alarm_month_abb = month.abb[alarm_month])
+  
 fire_count <- fire_date %>% group_by(decade) %>% count()
 
 # very few data points have containment day entered BEFORE the alarm date. remove those.
-# if (alarm_month = cont_month, then mutate(length_of_fire = (cont_day - alarm_day)(+1??))), else
 
 #fire season. very few fires from before 1970 had complete record of alarm adn containment dates, so combined those into two grpups (1920s-1939, 1940-1969)
 fire_season_pre1939 <- fire_date %>% 
@@ -107,24 +107,61 @@ fire_season_post1970 <- fire_date %>%
   group_by(alarm_year) %>% 
   summarize(min_alarm = min(alarm_month),
             mean_alarm = mean(alarm_month),
-            median_alarm = median(alarm_month),
             max_alarm = max(alarm_month),
             sample_size = n()) 
 
-fire_season_summary <- rbind(fire_season_pre1939, fire_season_pre1969, fire_season_post1970)
-fire_season_summary <- fire_season_summary %>% 
-  mutate(alarm_year = as.numeric(alarm_year))
+fire_season_summary <- rbind(fire_season_pre1939, fire_season_pre1969, fire_season_post1970) 
+  
 
 ggplot(fire_season_post1970, aes(x = alarm_year, y = mean_alarm)) +
   geom_line() +# try the stacked facet wrap
-  geom_smooth(method = "lm")
+  geom_smooth(method = "lm") +
+  theme_minimal() +
+  scale_x_continuous(expand = c(0,0)) +
+  scale_y_continuous(expand = c(0,0),
+                   lim = c(5, 9),
+                   breaks = seq(5, 9, by = 1),
+                   labels = c("May", "Jun", "Jul", "Aug", "Sep")) +
+  labs(x = "", y = "Average Fire Start Month\n")
+
+ggplot(fire_season_post1970, aes(x = alarm_year, y = min_alarm)) +
+  geom_line() +# try the stacked facet wrap
+  geom_smooth(method = "lm") +
+  theme_minimal() +
+  scale_x_continuous(expand = c(0,0)) +
+  scale_y_continuous(expand = c(0,0),
+                     lim = c(1, 8),
+                     breaks = seq(1, 8, by = 1),
+                     labels = c("Jan", "Feb","Mar","Apr", "May", "Jun", "Jul", "Aug")) +
+  labs(x = "", y = "Earliest Fire Start Month\n")
+
+ggplot(fire_season_post1970, aes(x = alarm_year, y = max_alarm)) +
+  geom_line() +# try the stacked facet wrap
+  geom_smooth(method = "lm") +
+  theme_minimal() +
+  scale_x_continuous(expand = c(0,0)) +
+  scale_y_continuous(expand = c(0,0),
+                     lim = c(6, 12),
+                     breaks = seq(6, 12, by = 1),
+                     labels = c("Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")) +
+  labs(x = "", y = "Latest Fire Start Month\n")
+
+ggplot(fire_date, aes(y = alarm_year, x = alarm_month)) +
+  geom_point() # weird graph
 
 # doesnt look like anything has changed. probs too much annual variation. Look at average for a decade
 ggplot(fire_date, aes(x = alarm_month, y = decade)) +
-  geom_density_ridges(aes(fill = decade)) 
+  geom_density_ridges(aes(fill = decade), show.legend = F) +
+  labs(x = "Fire Start Month", y = "") +
+  theme_minimal() +
+  scale_x_continuous(expand = c(0,0),
+                     lim = c(1, 12),
+                     breaks = seq(1,12, by = 1), 
+                     labels = c("Jan", "Feb","Mar","Apr", "May","Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")) +
+  scale_y_discrete(expand = c(0,0)) 
  # scale_y_discrete(limits = rev(fire_season_post1970$decade)) # not working
-ggplot(fire_length, aes(x = length_of_fires, y = decade)) +
-  geom_density_ridges(aes(fill = decade)) 
+
+
 #ggplot(fire_season_post1970, aes(x = acres, y = decade)) +
 #  geom_density_ridges(aes(fill = decade)) # jnot helpful
 
@@ -146,12 +183,39 @@ fire_length_sub_neg <- fire_date %>%
 fire_length <- rbind(fire_length_sub_pos, fire_length_sub_neg) %>% 
   mutate(alarm_year = as.numeric(alarm_year))
 
+fire_length_no_outliers <- fire_length %>% 
+  filter(length_of_fires < 100)
+
+fire_length_mod <- fire_length %>% filter (length_of_fires >=1)
+
+ggplot(fire_length, aes(x = length_of_fires, y = acres)) +
+  geom_point() # huh. weird graph
+
 (cont_day_of_year - alarm_day_of_year)
 
+length_no_outliers <- ggplot(fire_length_no_outliers, aes(x = length_of_fires, y = decade)) +
+  geom_density_ridges(aes(fill = decade), show.legend = F) +
+  labs(x = 'Length of Fires', y= "") +
+  theme_minimal() +
+  scale_x_continuous(expand = c(0,0)) +
+  scale_y_discrete(expand = c(0,0))
 
-plot_length_data <- fire_length %>% 
-  filter(length_of_fires > 60)
-plot(plot_length_data)
+ggplot(fire_length_mod, aes(x = length_of_fires, y = decade)) +
+  geom_density_ridges(aes(fill = decade), show.legend = F) +
+  labs(x = 'Length of Fires', y= "") +
+  theme_minimal() +
+  scale_x_continuous(expand = c(0,0)) +
+  scale_y_discrete(expand = c(0,0))
+
+ggplot(fire_length_mod, aes(x = alarm_month, y = length_of_fires)) +
+  geom_point() +
+  theme_minimal() +
+  labs(x = "\nFire Start Month", y = "Length of Fires\n") +
+  scale_x_continuous(expand = c(0,0),
+                     lim = c(1, 12),
+                     breaks = seq(1,12, by = 1),
+                     labels = c("Jan", "Feb","Mar","Apr", "May","Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"))  +
+  scale_y_continuous(expand = c(0,0)) 
 # toher sub data---------------------------------------
 fire_yearly_data <- fire %>% 
     drop_na(year) %>% 
