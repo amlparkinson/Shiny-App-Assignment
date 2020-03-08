@@ -148,7 +148,7 @@ fire_length <- rbind(fire_length_sub_pos, fire_length_sub_neg) %>%
   mutate(alarm_year = as.numeric(alarm_year))
 
 fire_length_no_outliers <- fire_length %>% 
-  filter(length_of_fires < 100)
+  filter(length_of_fires < 75)
 
 length_no_outliers <- ggplot(fire_length_no_outliers, aes(x = length_of_fires, y = decade)) +
   geom_density_ridges(aes(fill = decade), show.legend = F) +
@@ -180,26 +180,27 @@ fire_causes <- fire %>%
     cause == 1 ~ "Lightning",
     cause == 2 ~ "Equipment Use",
     cause == 3 ~ "Smoking",
-    cause == 4 ~ "Campfire",
+    cause %in% c(4,19) ~ "Campfire",
     cause == 5 ~ "Debris",
     cause == 6 ~ "Railroad",
-    cause == 7 ~ "Arson",
+    #cause == 7 ~ "Arson",
     cause == 8 ~ "Playing with Fire",
-    cause == 9 ~ "Miscellaneous",
+    cause %in% c(9, 16, 7, 12, 13) ~ "Miscellaneous",
     cause == 10 ~ "Vehicle",
     cause == 11 ~ "Powerline",
-    cause == 12 ~ "Firefighting Training",
-    cause == 13 ~ "Non-firefighting Training",
+    #cause == 12 ~ "Firefighting Training",
+    #cause == 13 ~ "Non-firefighting Training",
     cause == 14 ~ "Unknown",
     cause == 15 ~ "Structure",
-    cause == 16 ~ "Aircraft",
+    #cause == 16 ~ "Aircraft",
     cause == 17 ~ "Volcanic",
-    cause == 18 ~ "Escaped Prescribed Burn",
-    cause == 19 ~ "Illegal Campfire"
+    cause == 18 ~ "Escaped Prescribed Burn"
+    #cause == 19 ~ "Illegal Campfire"
   )) %>% 
   arrange(fire_cause) %>% 
   mutate(year = as.numeric(year)) %>% 
-  filter(!is.na(year))
+  filter(!is.na(year)) 
+
 
 #data for fire causes to compare natural vs human casued fires ------------------------------
 fire_cause_simplified <- fire_causes %>% 
@@ -292,42 +293,47 @@ ui <- navbarPage(
   "Navigation Bar!",
    theme = shinytheme("united"),
    tabPanel("Fire History",
-            h1("Title"),
+            h1("Background"),
            # mainPanel(plotOutput(outputId = "gganimate_map")),
-            p("text")),
-   tabPanel("Fire Season",
+            p("This App explores trends in fire history for California. There have been over 21,000 recorded fires in that have burned xx acres. Due to technical 
+              difficulties, only fires over 200 acres, which represents 9,584 fires, were included for analysis."),
+            h1("Data"),
+            p("Data was obtained from the Fire and Resource Assessment Program (FRAP) from CalFire (https://frap.fire.ca.gov/frap-projects/fire-perimeters/). 
+              Data has been collected since 1880s, but there are relatively very few recorded observations from 1880s to the early 1900s. Likely this data set represents 
+              an incomplete record, thus results comparing changes to fire trends from early 1900s should be interpreted with caution.
+              To help with this issue, 1880s-early 1900s data was omitted and in some cases combined to form a larger data set. Additionally, due to incomplete data points, 
+              some analyses include fires than in the dataset. The total number of fires used in an analysis is noted on each page."),
+           h3("Note"),
+           p("In order to display maps, graphs, adn conduct calculations in real time, fires less than 200 acres were removed from analysis. Technical difficulties made it difficult to conduct analyses 
+             and greate maps with such a large data set." )),
+   tabPanel("Fire Season and Fire Length",
             h1("title"),
             p("text"),
             sidebarLayout(
               sidebarPanel(pickerInput(inputId = "select_summary_stat",
                                         label = "Select Summary Statistic to Explore",
-                                        choices = c("min_alarm", "mean_alarm", "max_alarm", "all_decade"),
+                                        choices = c("First Annual Fire" = "min_alarm", 
+                                                    "Average Fire Start Date" = "mean_alarm", 
+                                                    "Last Annual Fire" = "max_alarm", 
+                                                    "Distribution of All Fire Start Dates" = "all_decade",
+                                                    "Relationship Between Fire Length and Fire Season" = "length_and_season",
+                                                    "Distribution of All Fire Lengths" = "length_graph_all",
+                                                    "Distribution of All Fire Lengths With no Outliers" = "length_graph_no_outliers"),
                                         options(list(style = "btn-danger")))),
               mainPanel("Graph here",
-                        plotOutput(outputId = "season_summary_graph"),
-                        plotOutput(outputId = "season_ggridges_graph"))
+                        plotOutput(outputId = "season_summary_graph"))
               )),
-   tabPanel("Fire Length",
-            h1("title"),
-            p("text"),
-            sidebarLayout(
-              sidebarPanel(pickerInput(inputId = "select_stat",
-                                       label = "Select",
-                                       choices = c("length_graph_all", "length_graph_no_outliers", "length_and_season"))),
-              mainPanel("graph here",
-                        plotOutput(outputId = "fire_length_graph"))
-                )),
    tabPanel("Fire Size",
             h1("Title"),
             p("text"),
             sidebarLayout(
               sidebarPanel(radioButtons(inputId = "select_area",
                                         label = "Select Fire Size (Acres)",
-                                        choices = c("0-1,000", "1,000-5,000", "5,000-10,000", "10,000-20,000", "20,000-40,000", "40,000-100,000", "100,000-450,000"))), #unique(fire_size$area_categorical)
+                                        choices = c("200-1,000", "1,000-5,000", "5,000-10,000", "10,000-20,000", "20,000-40,000", "40,000-100,000", "100,000-450,000"))), #unique(fire_size$area_categorical)
               mainPanel("Graph and Table Here",
                         plotOutput(outputId = "area_graph"),
                         tableOutput(outputId = "area_sum_table"),
-                        leafletOutput(outputId = 'size_decades_map')))),
+                        plotOutput(outputId = 'size_decades_map')))),
   navbarMenu("Fire Causes",
              tabPanel("All",
                       sidebarLayout(
@@ -344,8 +350,8 @@ ui <- navbarPage(
                                                  sep = "")),
                         mainPanel("Graph and Table Here",
                                   plotOutput(outputId = "fire_causes_graph"),
-                                  #leafletOutput('fire_causes_map'),
-                                  tableOutput(outputId = 'fire_causes_table')))),
+                                  tableOutput(outputId = 'fire_causes_table'),
+                                  plotOutput('fire_causes_map')))),
              tabPanel("Natural vs Human Caused",
                       sidebarLayout(
                         sidebarPanel("text",
@@ -387,16 +393,11 @@ server <- function(input, output) {
     if (input$select_summary_stat == "mean_alarm") {print(mean_season)}
     if (input$select_summary_stat == "max_alarm") {print(max_season)}
     if (input$select_summary_stat == "all_decade") {print(season_ggridges)}
-  })
- 
-# output for fire length 
-  output$fire_length_graph <- renderPlot ({
-    if(input$select_stat == "length_graph_all") {print(length_all)}
-    if(input$select_stat == "length_graph_no_outliers") {print(length_no_outliers)}
-    if(input$select_stat == "length_and_season") {print(length_season)}
+    if(input$select_summary_stat == "length_graph_all") {print(length_all)}
+    if(input$select_summary_stat == "length_graph_no_outliers") {print(length_no_outliers)}
+    if(input$select_summary_stat == "length_and_season") {print(length_season)}
   })
 
-  
 #data frame for the number of fires that occurred per decade grouped by fire size
   area_decades_count <- reactive({
     fire_size %>% 
@@ -433,18 +434,14 @@ server <- function(input, output) {
     bordered = T,
     align = 'c'
   )
-  
-  size_decades_map_data <- reactive({
-    fire_size %>% 
-      filter(area_categorical == input$select_area)
-  })
-  
+
+# map for size data   
   output$size_decades_map <- renderPlot({
     ggplot() +
       geom_sf(data = ca_border, color = "grey80") +
-      geom_sf(data = size_decades_map_data(), aes(fill = decade), alpha = 0.8, color = "red")
+      geom_sf(data = area_decades_count(), aes(fill = decade), alpha = 0.8, color = NA) +
+      theme_map()
   })
-  
   
 # data frame for all fire causes
   fire_causes_count <- reactive({
@@ -469,6 +466,15 @@ server <- function(input, output) {
       scale_x_continuous(expand = c(0,0)) 
   })
 
+# map for fire causes
+ output$fire_causes_map <- renderPlot({
+   ggplot() +
+     geom_sf(data = ca_border) +
+     geom_sf(data = fire_causes_count(), aes(fill = fire_cause), color = NA) +
+     theme_map() +
+     scale_fill_discrete(name="Cause") 
+ }) 
+
 # sum fire occurances and acres burned
   fire_causes_count_sum <- reactive ({
     fire_causes %>% 
@@ -490,13 +496,6 @@ server <- function(input, output) {
   output$fire_causes_table <- renderTable({
     fire_causes_count_sum()
   })
-  #map for fire causes
- # output$fire_causes_map <- renderLeaflet({
- #   tm_shape(data = ca_border) +
- #     tm_fill(data = fire_causes_count())
- # })
- 
-
 
   output$fire_causes_simplified_graph <- renderPlot({
     if(input$select_count_area == "n") {print(count_plot)}
@@ -505,43 +504,10 @@ server <- function(input, output) {
 }
   
 
-
-  
 #run shiny app --------------------------------------------------------------
 
 shinyApp(ui = ui, server = server)
 
-#trial 
-fire_causes_simplified_count_acres_select <- reactive ({
-  (input$select_count_area)
-})
-
-fire_causes_simplified_count_acres_select <- reactive ({
-  fire_causes_simplified_count_acres %>% 
-    select(-input$select_count_area)
-})
-
-output$fire_causes_simplified_graph <- renderPlot({
-  
-})
-
-# trial 1
-fire_causes_simplified_count_acres_select <- reactive({
-  if(input$select_count_area == "Total Annual Fires") {print(count_plot)}
-  else {print(acres_plot)}
-  #if(input$select_count_area == "Annual Acres Burned") {print(acres_plot)}
-})
-output$fire_causes_simplified_graph <- renderPlot({
-  fire_causes_simplified_count_acres_select()
-}) 
-
-#trial 2
-fire_causes_simplified_count_acres_select <- reactive ({input$select_count_area})
-
-output$fire_causes_simplified_graph <- renderPlot({
-  if(fire_causes_simplified_count_acres_select() == "Total Annual Fires") {print(count_plot)}
-  else {print(acres_plot)}
-})
 
 ##issues
 # # dropped decades for largest size class
@@ -555,22 +521,14 @@ output$fire_causes_simplified_graph <- renderPlot({
 # add percentages at top of bars for fire size graph?
 
 
+#sub data
+fire_causes_map_data <- fire_causes %>%
+  filter(fire_cause == "Lightning") %>% 
+  filter(year >2000)
 
-  fire_causes_count_sum <-  fire_causes %>% 
-      filter(fire_cause == "Unknown") %>% 
-      filter(year >= 2000) %>%
-     # filter(year <= input$date_fire_causes1[2]) %>% 
-      group_by(fire_cause) %>% 
-      summarise(sum_fires = n(),
-                sum_acres = sum(acres)) %>% 
-    mutate(sum_acres = format(round(sum_acres), big.mark=","),
-           sum_fires = format(sum_fires, big.mark=",")) %>% 
-      st_drop_geometry() %>% 
-    rename("Total Fire Occurances" = sum_fires,
-           "Total Acres Burned" = sum_acres,
-           "Fire Cause" = fire_cause)
-  head(fire_causes_count_sum)
-    # table for total fire causes
-  output$fire_causes_table <- renderTable({
-    fire_causes_count_sum()
+ggplot() +
+  geom_sf(data = ca_border) +
+  geom_sf(data = fire_causes_map_data, aes(fill = fire_cause), color = NA) +
+  theme_map() +
+  scale_fill_discrete(name="Cause")
 

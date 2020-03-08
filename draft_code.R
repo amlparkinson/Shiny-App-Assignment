@@ -19,11 +19,14 @@ fire <- read_sf(here::here("Arc_data", "fire_perimeter_shpfile"), layer = "fire_
 
 # clean data --------------------------------------------------------------
 
-fire <- fire %>% 
+fire_1 <- fire_raw %>% 
   clean_names() %>% 
   lwgeom::st_make_valid() %>% 
   sf::st_collection_extract() %>% 
   mutate (fire_name = str_to_title(fire_name)) #str_to_title converts observations to first letter capitalized other letters lowercase
+
+fire_ac <- fire_1 %>% 
+  summarise(sumss = sum(acres))
 
 # small sample of main data set to use to creat the code so r wont freeze as often---------------------
 
