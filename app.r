@@ -297,7 +297,9 @@ ui <- navbarPage(
             h1("Background"),
            # mainPanel(plotOutput(outputId = "gganimate_map")),
             p("This App explores trends in fire history for California. There have been over 21,000 recorded fires in that have burned xx acres. Due to technical 
-              difficulties, only fires over 200 acres, which represents 9,584 fires, were included for analysis."),
+              difficulties, only fires over 200 acres, which represents 9,584 fires, were included for analysis.
+              
+              Over 38 million acres have burned in California, representing almost 34% of land in the state. "),
             h1("Data"),
             p("Data was obtained from the Fire and Resource Assessment Program (FRAP) from CalFire (https://frap.fire.ca.gov/frap-projects/fire-perimeters/). 
               Data has been collected since 1880s, but there are relatively very few recorded observations from 1880s to the early 1900s. Likely this data set represents 
@@ -308,14 +310,11 @@ ui <- navbarPage(
            p("In order to display maps, graphs, and conduct calculations in real time, fires less than 200 acres were removed from analysis. Technical difficulties made it difficult to conduct analyses 
              and greate maps with such a large data set." )),
    tabPanel("Fire Season and Fire Length",
-            h3("This page explores trends in fire season and duration that a fire burned, aka fire length. Research has shown that fire season starting 
-               eariler and ending later. It has been estimated that the fire season has increased by 75 days. Severl factors are driving this, the key culprit is largely considered climate change.
-               Hotter temperatures, reduced snowpack, adn earlier snowmelt create longer dry seasons with more drought stressed vegetation."),
+            h3("Background"),
             p("This page explores trends in fire season and duration that a fire burned, aka fire length. Research has shown that fire season has changed compared to historic norms; fires are starting \
             earlier and ending later. It has been estimated that the fire season has increased by 75 days. Several factors are driving this change, of which climate change is considered the key driver. 
               Hotter temperatures, reduced snowpack, and earlier snowmelt create longer dry seasons with more drought stressed vegetation. These factors in addition to increased vegetation density due to fire supresssion
-              also lengthen the duration of fires as more densely packed, drought stressed vegetation is more flamable and thus easier to spread. Additionally, some also blame annual invasive grasses as a contributor to the trend
-              in lengthening the fire season since these species bloom and die in mid spring before most native vegetation. Thus, the dead grasses can act as kindling and start fires."),
+              also lengthen the duration of fires as more densely packed, drought stressed vegetation is more flamable and thus easier to spread."),
             h3("Data and Methods"),
             p("Alarm date refers to the day a fire started. This data was used to determine trends in fire season. Data on alarm date was available for
               2,480 fires (from the 9,584). There was no data on alarm date available pre-1920 and there were Very few fires from the 1920s-mid 1900s that contained this information. To avoid misinterpreting any results, fires from before 1970 were exlcuded from this 
@@ -339,8 +338,9 @@ ui <- navbarPage(
                         plotOutput(outputId = "season_summary_graph"))
               )),
    tabPanel("Fire Size",
-            h3("Bacground"),
-            p("This page explores how fire size has changed over the decades. Since fire suppression policies were enacted, vegetation density was allowed to accumulate for decades. "),
+            h3("Background"),
+            p("This page explores how fire size has changed over the decades. Since fire suppression policies were enacted, vegetation density was allowed to accumulate for decades. Because of this
+              fire size and severity has increased. Of California's largest wildfires (> 100,000 acres) 40% occurred after 2000 and 89% occurred after 1970. "),
             h3("Data and Methods"),
             p("Size was calculted for each polygon in ArcGIS. Units are in acres. There are few data points available from 1880s-early 1900s, so those should be 
               interpreted with caution."),
@@ -354,14 +354,19 @@ ui <- navbarPage(
                                                     "20,000-40,000", 
                                                     "40,000-100,000", 
                                                     "100,000-450,000"))), #unique(fire_size$area_categorical)
-              mainPanel("Graph and Table Here",
+              mainPanel(" ",
                         plotOutput(outputId = "area_graph"),
                         tableOutput(outputId = "area_sum_table"),
                         plotOutput(outputId = 'size_decades_map')))),
   navbarMenu("Fire Causes",
              tabPanel("All",
+                      h3("Background"),
+                      p("Recent large and deadly wildfires caused by powerlines have taken up a lot of time on the news, but the occurances of these large wildfires are realtively 
+                        rare compared to the small less is known about the causes of smaller fires and overall  "),
+                      h3(""),
+                      p(""),
                       sidebarLayout(
-                        sidebarPanel("text here",
+                        sidebarPanel(" ",
                                      multiInput(inputId = "check_fire_causes",
                                                  label = "Select Fire Cause(s) to explore:",
                                                  choices = c(unique(fire_causes$fire_cause))),
