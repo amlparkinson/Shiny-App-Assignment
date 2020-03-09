@@ -278,4 +278,35 @@ fire_area_count <- fire_area %>%
   group_by(area_categorical) %>% 
   count()
 
+# calculate % for each decade by fire size class
+
+fire_size_calc <- fire_size %>% 
+  group_by(decade, area_categorical) %>% 
+  count()
+  
+  
+  
+  
+  
+  
+  #data frame for the number of fires that occurred per decade grouped by fire size
+  area_decades_count <- reactive({
+    fire_size %>% 
+      filter(area_categorical == input$select_area) %>% 
+      group_by(decade, area_categorical) %>% 
+      count()
+  })
+
+#graph output for fire size per decade 
+output$area_graph <- renderPlot({
+  ggplot(data = area_decades_count(), aes(x = decade, y = n)) + 
+    geom_col(fill = "firebrick4", alpha= 0.7) +
+    scale_x_discrete(expand = c(0,0),
+                     drop = F) +
+    scale_fill_discrete(drop = F) +
+    scale_y_continuous(expand = c(0,0)) +
+    labs (x = "\nTime", y = "Number of Fires\n") +
+    theme_classic() +
+    theme(plot.margin = unit(c(5,5,5,5), "lines"))
+})
 

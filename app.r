@@ -173,7 +173,26 @@ length_season <- ggplot(fire_length, aes(x = alarm_month, y = length_of_fires)) 
                      breaks = seq(1,12, by = 1),
                      labels = c("Jan", "Feb","Mar","Apr", "May","Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"))  +
   scale_y_continuous(expand = c(0,0)) 
-# data for fire causes ------------------------------------------------------
+
+# data for fire sizes ---------------------------------------------------------------------------
+fire_size <- fire %>% 
+  mutate(area_categorical = case_when(
+    acres < 1000 ~ "0-1,000",
+    acres < 5000 ~ "1,000-5,000",
+    acres < 10000 ~ "5,000-10,000",
+    acres < 20000 ~ "10,000-20,000",
+    acres < 40000 ~ "20,000-40,000",
+    acres < 100000 ~ "40,000-100,000",
+    acres < 500000 ~ "100,000-450,000"
+  )) %>% 
+  mutate(year = as.numeric(year)) %>% 
+  filter(!is.na(decade)) %>% 
+  st_as_sf() %>% 
+  mutate(area_categorical = as.factor(area_categorical))  %>% 
+  mutate(area_categorical = fct_relevel(area_categorical, levels = c("0-1,000", "1,000-5,000", "5,000-10,000",
+                                                                     "10,000-20,000", "20,000-40,000", "40,000-100,000",
+                                                                     "100,000-450,000"))) 
+# data for fire causes --------------------------------------------------------------------------
 fire_causes <- fire %>%
   mutate(fire_cause = case_when(
     cause == 0 ~ "Unknown",
@@ -256,24 +275,6 @@ acres_plot <- ggplot(data = fire_causes_simplified_count_acres, aes(x = year, y 
   scale_x_continuous(expand = c(0,0),
                      lim = c(1910, 2020)) +
   labs(x = "\nYear", y = "Acres Burned\n") 
-# data for fire sizes ---------------------------------------------------------------------------
-fire_size <- fire %>% 
-  mutate(area_categorical = case_when(
-    acres < 1000 ~ "0-1,000",
-    acres < 5000 ~ "1,000-5,000",
-    acres < 10000 ~ "5,000-10,000",
-    acres < 20000 ~ "10,000-20,000",
-    acres < 40000 ~ "20,000-40,000",
-    acres < 100000 ~ "40,000-100,000",
-    acres < 500000 ~ "100,000-450,000"
-  )) %>% 
-  mutate(year = as.numeric(year)) %>% 
-  filter(!is.na(decade)) %>% 
-  st_as_sf() %>% 
-  mutate(area_categorical = as.factor(area_categorical))  %>% 
-  mutate(area_categorical = fct_relevel(area_categorical, levels = c("0-1,000", "1,000-5,000", "5,000-10,000",
-                                                                     "10,000-20,000", "20,000-40,000", "40,000-100,000",
-                                                                     "100,000-450,000"))) 
 
 # gganimate sub-data ---------------------------------------------------------------------------
 fire_animate <- fire %>% 
@@ -307,8 +308,14 @@ ui <- navbarPage(
            p("In order to display maps, graphs, and conduct calculations in real time, fires less than 200 acres were removed from analysis. Technical difficulties made it difficult to conduct analyses 
              and greate maps with such a large data set." )),
    tabPanel("Fire Season and Fire Length",
-            h3("Background"),
-            p("This page explores trends in fire season and duration that a fire burned, aka fire length."),
+            h3("This page explores trends in fire season and duration that a fire burned, aka fire length. Research has shown that fire season starting 
+               eariler and ending later. It has been estimated that the fire season has increased by 75 days. Severl factors are driving this, the key culprit is largely considered climate change.
+               Hotter temperatures, reduced snowpack, adn earlier snowmelt create longer dry seasons with more drought stressed vegetation."),
+            p("This page explores trends in fire season and duration that a fire burned, aka fire length. Research has shown that fire season has changed compared to historic norms; fires are starting \
+            earlier and ending later. It has been estimated that the fire season has increased by 75 days. Several factors are driving this change, of which climate change is considered the key driver. 
+              Hotter temperatures, reduced snowpack, and earlier snowmelt create longer dry seasons with more drought stressed vegetation. These factors in addition to increased vegetation density due to fire supresssion
+              also lengthen the duration of fires as more densely packed, drought stressed vegetation is more flamable and thus easier to spread. Additionally, some also blame annual invasive grasses as a contributor to the trend
+              in lengthening the fire season since these species bloom and die in mid spring before most native vegetation. Thus, the dead grasses can act as kindling and start fires."),
             h3("Data and Methods"),
             p("Alarm date refers to the day a fire started. This data was used to determine trends in fire season. Data on alarm date was available for
               2,480 fires (from the 9,584). There was no data on alarm date available pre-1920 and there were Very few fires from the 1920s-mid 1900s that contained this information. To avoid misinterpreting any results, fires from before 1970 were exlcuded from this 
