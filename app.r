@@ -137,7 +137,7 @@ season_ggridges <- ggplot(fire_date, aes(x = alarm_month, y = decade)) +
                      labels = c("Jan", "Feb","Mar","Apr", "May","Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")) +
   scale_y_discrete(expand = c(0,0)) 
 
-# fire length -------------------------------------------------------------
+`# fire length -------------------------------------------------------------
 
 fire_length_sub_pos<- fire_date %>% 
   filter(length_of_fires >= 0) 
@@ -220,7 +220,7 @@ fire_causes <- fire %>%
   mutate(year = as.numeric(year)) %>% 
   filter(!is.na(year)) 
 
-
+fire_un <- fire_causes %>% filter(fire_cause == "Unknown")
 #data for fire causes to compare natural vs human casued fires ------------------------------
 fire_cause_simplified <- fire_causes %>% 
   mutate (fire_cause_simplified = case_when(
@@ -362,9 +362,10 @@ ui <- navbarPage(
              tabPanel("All",
                       h3("Background"),
                       p("Recent large and deadly wildfires caused by powerlines have taken up a lot of time on the news, but the occurances of these large wildfires are realtively 
-                        rare compared to the small less is known about the causes of smaller fires and overall  "),
-                      h3(""),
-                      p(""),
+                        rare compared to the hundreds of small wildfires (< 1,000 acres) that occur every year but do not make the news. Therefore, less is known about the causes of smaller fires
+                        and overall causes of historic fires and how those have changed over the years."),
+                      h3("Data and Methods"),
+                      p("There are 14 categories for causes of wildfires; exlcuding unknown category. There are 4,420 fires with fire causes recorded; 5,116 fires had an unknown cause."),
                       sidebarLayout(
                         sidebarPanel(" ",
                                      multiInput(inputId = "check_fire_causes",
@@ -382,14 +383,18 @@ ui <- navbarPage(
                                   tableOutput(outputId = 'fire_causes_table'),
                                   plotOutput('fire_causes_map')))),
              tabPanel("Natural vs Human Caused",
+                      h3("Background"),
+                      p("This page compares fire occurances and acres burned between human caused and natural fires. Natural fires and fires started by lightening or volcanic 
+                        activity. Fires with unknown causes were excluded from this analysis."),
                       sidebarLayout(
-                        sidebarPanel("text",
+                        sidebarPanel(" ",
                                      radioButtons(inputId = "select_count_area",
                                                   label = "Pick:",
                                                   choices = c("Total Annual Fires" = "n",
                                                               "Annual Acres Burned" = "yearly_acres_burned"))),
                         mainPanel("Graph Here",
-                                  plotOutput(outputId = "fire_causes_simplified_graph"))
+                                  plotOutput(outputId = "fire_causes_simplified_graph"),
+                                  tableOutput(outputId = "fire_simplified_decades_summary"))
                       )))
 )
 
@@ -400,16 +405,11 @@ server <- function(input, output) {
 #gganimate map for intro page
   output$gganimate_map <- renderPlot({
     anim_plot <- ggplot(data = fire_animate) +
-      geom_sf(data = ca_border, color = "grey80") +
-      geom_sf(data = fire_animate, aes(fill = decade, color = decade), alpha = 0.8) +
+      `(data = ca_border, color = `"grey80") +``
+      geom_sf(data = fire_animat```e, aes(fill = decade, color = decade), alpha = 0.8) +
       theme_classic() +
       theme_map() +
-      labs(title = "Year: {round(frame_time,0)}") +
-      #labs(subtitle = "Acres Burned: {} ")  +
-      transition_time(year) +
-      # transition_states(year) +
-      #labs(title = str_glue_data(fire_animate2, "Year: {year}")) +
-      ease_aes("linear") +
+      labs(t`qq1`      ease_aes("linear") +
       shadow_mark(alpha = 0.3)
     
     animate(anim_plot, fps = 10, end_pause = 30)
@@ -529,6 +529,14 @@ server <- function(input, output) {
   output$fire_causes_simplified_graph <- renderPlot({
     if(input$select_count_area == "n") {print(count_plot)}
     else {print(acres_plot)}
+  })
+  
+  fire_simplified_decades <- fire_cause_simplified %>% 
+    group_by(fire_cause_simplified, decade) %>% 
+    summarise(n = n(),
+              decade_acres = sum(acres))
+  output$fire_simplified_decades_summary <- renderTable({
+    fire_simplified_decades()
   })
 }
   
