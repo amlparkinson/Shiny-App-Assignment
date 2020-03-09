@@ -26,7 +26,15 @@ fire_1 <- fire_raw %>%
   mutate (fire_name = str_to_title(fire_name)) #str_to_title converts observations to first letter capitalized other letters lowercase
 
 fire_ac <- fire_1 %>% 
-  summarise(sumss = sum(acres))
+  summarise(sumss = sum(acres)) %>% 
+  st_drop_geometry() # 34,808,435
+
+write.table(fire_ac, "fireac.csv", sep=",")
+
+fire_most <- fire_1 %>% 
+  dplyr::select(year, acres) %>% 
+  filter(acres > 100000)
+
 
 # small sample of main data set to use to creat the code so r wont freeze as often---------------------
 
