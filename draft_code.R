@@ -278,39 +278,4 @@ fire_area_count <- fire_area %>%
   group_by(area_categorical) %>% 
   count()
 
-# fire causes ---------------------------------------------------------------
-
-#sub-data
-fire_causes <- fire2 %>%
-  mutate(fire_cause = case_when(
-    cause == 0 ~ "Unknown",
-    cause == 1 ~ "Lightning",
-    cause == 2 ~ "Equipment Use",
-    cause == 3 ~ "Smoking",
-    cause == 4 ~ "Campfire",
-    cause == 5 ~ "Debris",
-    cause == 6 ~ "Railroad",
-    cause == 7 ~ "Arson",
-    cause == 8 ~ "Playing with Fire",
-    cause == 9 ~ "Miscellaneous",
-    cause == 10 ~ "Vehicle",
-    cause == 11 ~ "Powerline",
-    cause == 12 ~ "Firefighting Training",
-    cause == 13 ~ "Non-firefighting Training",
-    cause == 14 ~ "Unknown",
-    cause == 15 ~ "Structure",
-    cause == 16 ~ "Aircraft",
-    cause == 17 ~ "Volcanic",
-    cause == 18 ~ "Escaped Prescribed Burn",
-    cause == 19 ~ "Illegal Campfire"
-  )) %>% 
-  mutate (fire_cause_simplified = case_when(
-    fire_cause %in% c("Lightning", "Volcanic") ~ "Natural Cause",
-    fire_cause %in% c('Equipment Use','Smoking','Campfire','Debris','Railroad','Arson','Playing with Fire',
-                      'Miscellaneous','Vehicle','Powerline','Firefighting Training','Non-firefighting Training',
-                      'Structure', 'Aircraft', 'Escaped Prescribed Burn', 'Illegal Campfire') ~ "Human Cause",
-    fire_cause == "Unknown" ~ "Unknown"
-  )) %>% 
-  st_make_valid()
-
 

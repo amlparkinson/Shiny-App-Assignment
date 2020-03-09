@@ -27,7 +27,7 @@ library(ggridges)
 # add data ----------------------------------------------------------------
 
 ca_border <-  read_sf(here::here("Arc_data", "ca_state_border"), layer = "CA_State_TIGER2016") %>% 
-  st_transform(crs = 4269) #4326
+  st_transform(crs = 4326) #4326
 
 fire_raw <- read_sf(here::here("Arc_data", "fire_perimeter_shpfile"), layer = "fire_perimeters" ) # still need to remove fires outisde of CA, even though those fires are listed as being in CA but visually are outside of the state boundaries
 
@@ -38,7 +38,7 @@ fire <- fire_raw %>%
   clean_names() %>% 
   dplyr::filter (acres > 200) %>% 
   mutate (fire_name = str_to_title(fire_name)) %>%
-  st_transform(crs = 4269) %>% 
+  st_transform(crs = 4326) %>% 
   mutate (decade = case_when(
     year < 1900 ~ "1890s",
     year < 1909 ~ "1900s",
@@ -304,18 +304,26 @@ ui <- navbarPage(
               To help with this issue, 1880s-early 1900s data was omitted and in some cases combined to form a larger data set. Additionally, due to incomplete data points, 
               some analyses include fires than in the dataset. The total number of fires used in an analysis is noted on each page."),
            h3("Note"),
-           p("In order to display maps, graphs, adn conduct calculations in real time, fires less than 200 acres were removed from analysis. Technical difficulties made it difficult to conduct analyses 
+           p("In order to display maps, graphs, and conduct calculations in real time, fires less than 200 acres were removed from analysis. Technical difficulties made it difficult to conduct analyses 
              and greate maps with such a large data set." )),
    tabPanel("Fire Season and Fire Length",
-            h1("title"),
-            p("text"),
+            h3("Background"),
+            p("This page explores trends in fire season and duration that a fire burned, aka fire length."),
+            h3("Data and Methods"),
+            p("Alarm date refers to the day a fire started. This data was used to determine trends in fire season. Data on alarm date was available for
+              2,480 fires (from the 9,584). There was no data on alarm date available pre-1920 and there were Very few fires from the 1920s-mid 1900s that contained this information. To avoid misinterpreting any results, fires from before 1970 were exlcuded from this 
+              analysis."),
+            p("Fire length was calculated by converting date data (mm/dd/yyyy) to day of the year (0-365) format, then subtracting containment 
+               date (day the fire was declared contained) from alarm date. A few fires started in one year and ended in another. In this case, the following equation was used: (365 - alarm_date) + containment_date).
+            A few fires had the containment day recorded as before the alarm day, so these were removed as it was assumed these data points were the result of human error. In total 2,477 fires had accurate data for both
+              fire alarm date and containment date."),
             sidebarLayout(
               sidebarPanel(pickerInput(inputId = "select_summary_stat",
                                         label = "Select Summary Statistic to Explore",
-                                        choices = c("First Annual Fire" = "min_alarm", 
-                                                    "Average Fire Start Date" = "mean_alarm", 
-                                                    "Last Annual Fire" = "max_alarm", 
-                                                    "Distribution of All Fire Start Dates" = "all_decade",
+                                        choices = c("Earliest Alarm Date " = "min_alarm", 
+                                                    "Average Alarm Date" = "mean_alarm", 
+                                                    "Last Alarm Date" = "max_alarm", 
+                                                    "Distribution of All Alarm Dates" = "all_decade",
                                                     "Relationship Between Fire Length and Fire Season" = "length_and_season",
                                                     "Distribution of All Fire Lengths" = "length_graph_all",
                                                     "Distribution of All Fire Lengths With no Outliers" = "length_graph_no_outliers"),
@@ -324,12 +332,21 @@ ui <- navbarPage(
                         plotOutput(outputId = "season_summary_graph"))
               )),
    tabPanel("Fire Size",
-            h1("Title"),
-            p("text"),
+            h3("Bacground"),
+            p("This page explores how fire size has changed over the decades. Since fire suppression policies were enacted, vegetation density was allowed to accumulate for decades. "),
+            h3("Data and Methods"),
+            p("Size was calculted for each polygon in ArcGIS. Units are in acres. There are few data points available from 1880s-early 1900s, so those should be 
+              interpreted with caution."),
             sidebarLayout(
               sidebarPanel(radioButtons(inputId = "select_area",
                                         label = "Select Fire Size (Acres)",
-                                        choices = c("200-1,000", "1,000-5,000", "5,000-10,000", "10,000-20,000", "20,000-40,000", "40,000-100,000", "100,000-450,000"))), #unique(fire_size$area_categorical)
+                                        choices = c("200-1,000", 
+                                                    "1,000-5,000", 
+                                                    "5,000-10,000", 
+                                                    "10,000-20,000", 
+                                                    "20,000-40,000", 
+                                                    "40,000-100,000", 
+                                                    "100,000-450,000"))), #unique(fire_size$area_categorical)
               mainPanel("Graph and Table Here",
                         plotOutput(outputId = "area_graph"),
                         tableOutput(outputId = "area_sum_table"),
