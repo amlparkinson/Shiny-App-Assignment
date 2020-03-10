@@ -69,9 +69,9 @@ fire_animate <- fire %>%
   clean_names() %>%  
   filter(!is.na(year)) %>% 
   mutate(year = as.numeric(year)) %>% 
-  filter(year >= 1990) %>% 
-  filter(year <= 1997) %>% 
-  #filter(year != 1986) %>% 
+  #filter(year >= 1990) %>% 
+  #filter(year <= 1997) %>% 
+  filter(year != 1930, 1931, 1985, 1986, 1998, ,1999) %>% 
   st_as_sf() %>% 
   mutate (fire_name = str_to_title(fire_name))  %>% 
   dplyr::filter (acres > 200)  %>% 

@@ -318,3 +318,15 @@ output$area_graph <- renderPlot({
     theme(plot.margin = unit(c(5,5,5,5), "lines"))
 })
 
+
+
+# facet wrap for decades graph
+
+ggplot() +
+  geom_sf(data = ca_border, color = "grey80") +
+  geom_sf(data = fire, fill = "red4", color = "red4", alpha = 0.5) +
+  theme_classic() +
+  theme_map () +
+  facet_wrap(~decade)
+
+
