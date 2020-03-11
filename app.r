@@ -141,7 +141,7 @@ season_ggridges <- ggplot(fire_date, aes(x = alarm_month, y = decade)) +
                      labels = c("Jan", "Feb","Mar","Apr", "May","Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")) +
   scale_y_discrete(expand = c(0,0)) 
 
-`# fire length -------------------------------------------------------------
+# fire length -------------------------------------------------------------
 
 fire_length_sub_pos<- fire_date %>% 
   filter(length_of_fires >= 0) 
@@ -225,6 +225,7 @@ fire_causes <- fire %>%
   filter(!is.na(year)) 
 
 fire_un <- fire_causes %>% filter(fire_cause == "Unknown")
+
 #data for fire causes to compare natural vs human casued fires ------------------------------
 fire_cause_simplified <- fire_causes %>% 
   mutate (fire_cause_simplified = case_when(
@@ -250,9 +251,6 @@ fire_causes_simplified_acres <- fire_cause_simplified %>%
 #join data frames
 fire_causes_simplified_count_acres <- inner_join(fire_causes_simplified_count, 
                                                  fire_causes_simplified_acres, by = c("year", "fire_cause_simplified"))
-#fire_simplified_count_acres_pivot <- fire_causes_simplified_count_acres %>% 
- # pivot_longer(n, yearly_acres_burned,
-  #             names_to = )
 
 # graphs for server
 count_plot <- ggplot(data = fire_causes_simplified_count_acres, aes(x = year, y = n)) +
@@ -280,37 +278,27 @@ acres_plot <- ggplot(data = fire_causes_simplified_count_acres, aes(x = year, y 
                      lim = c(1910, 2020)) +
   labs(x = "\nYear", y = "Acres Burned\n") 
 
-# gganimate sub-data ---------------------------------------------------------------------------
-fire_animate <- fire %>% 
-  clean_names() %>%  
-  filter(!is.na(year)) %>% 
-  mutate(year = as.numeric(year)) %>% 
-  filter(year >= 1900) %>% 
-  filter(year <= 1935) %>% 
-  st_as_sf() %>% 
-  mutate (fire_name = str_to_title(fire_name))  %>% 
-  dplyr::filter (acres > 6000)  %>% 
-  mutate(year = as.numeric(year)) 
 
 # user interface ---------------------------------------------------------
 
 ui <- navbarPage(
-  "Navigation Bar!",
+  "California Fire",
    theme = shinytheme("united"),
    tabPanel("Fire History",
             h1("Background"),
             p("In some places it is a natural and essential component of the ecosystem, however fear of wildfire due to its uncontrollability and the threat it posed to human lives and essential industries, such as timber 
              industries, resulted in the passage of fire suppression policies in the early 1900s. While these policies were successful in reducing the number of wildfires, they had unintended consequences that have 
               changed the structure and composition of fire prone ecosystems, such as forests and chaparral. These consequences have created unnaturally dense vegetation which has resulted in larger, more frequent, 
-              and more severe wildfires than historic norms. "),
+              and more severe wildfires than historic norms."),
             p("This App explores trends in fire history for California. There have been over 21,000 recorded fires from mid 1880s to 2018 that have burned over 38 million acres; this represents 37.6% of land in the state."),
             h1("Data"),
             p("Fire perimeter polygons were obtained from the Fire and Resource Assessment Program (FRAP) from CalFire (https://frap.fire.ca.gov/frap-projects/fire-perimeters/).  Data is available from 1880s to 2018, 
               but there are relatively very few recorded observations from 1880s to the early 1900s. Thus, data from these years do not represent a complete record and comparisons from these years to later years should 
-              be interpreted with caution.   To help with this issue, in some cases data from 1880s-early 1900s was omitted. While there were over 21,000 recorded fires, due to technical difficulties only fires over 200 acres, which represents 9,584 fires, were included for analysis."),
+              be interpreted with caution.   To help with this issue, in some cases data from 1880s-early 1900s was omitted. While there were over 21,000 recorded fires, due to technical difficulties only fires over 200 acres, 
+              which represents 9,584 fires, were included for analysis."),
             p("Recorded data included fire cause, fire start date, fire containment date, fire name, and fire size in acres. However, not every fire had records of all of these data points. Thus, some analyses include less fires 
               than are in the final dataset. The total number of fires used in an analysis is noted on each page."),
-            mainPanel(plotOutput(outputId = "gganimate_map", height=1000, width=1000)),
+            mainPanel(plotOutput(outputId = "fire_facet_graph", height=1000, width=1000))),
    tabPanel("Fire Season and Fire Length",
             h3("Background"),
             p("This page explores trends in fire season and duration that a fire burned, aka fire length. Research has shown that fire season has changed compared to historic norms; fires are starting \
@@ -336,9 +324,8 @@ ui <- navbarPage(
                                                     "Distribution of All Fire Lengths" = "length_graph_all",
                                                     "Distribution of All Fire Lengths With no Outliers" = "length_graph_no_outliers"),
                                         options(list(style = "btn-danger")))),
-              mainPanel("Graph here",
-                        plotOutput(outputId = "season_summary_graph"))
-              )),
+              mainPanel("",
+                        plotOutput(outputId = "season_summary_graph")))),
    tabPanel("Fire Size",
             h3("Background"),
             p("This page explores how fire size has changed over the decades. Since fire suppression policies were enacted, vegetation density was allowed to accumulate for decades. Because of this
@@ -380,7 +367,7 @@ ui <- navbarPage(
                                                  label = "Select Range of Year(s)",
                                                  min = 1880, max = 2019, value = c(1880,2019),
                                                  sep = "")),
-                        mainPanel("Graph and Table Here",
+                        mainPanel("",
                                   plotOutput(outputId = "fire_causes_graph"),
                                   tableOutput(outputId = 'fire_causes_table'),
                                   plotOutput('fire_causes_map')))),
@@ -394,31 +381,17 @@ ui <- navbarPage(
                                                   label = "Pick:",
                                                   choices = c("Total Annual Fires" = "n",
                                                               "Annual Acres Burned" = "yearly_acres_burned"))),
-                        mainPanel("Graph Here",
+                        mainPanel("",
                                   plotOutput(outputId = "fire_causes_simplified_graph"),
-                                  tableOutput(outputId = "fire_simplified_decades_summary"))
-                      )))
+                                  tableOutput(outputId = "fire_simplified_decades_summary")))))
 )
 
 #server --------------------------------------------------------------------
 
 server <- function(input, output) {
   
-#gganimate map for intro page
-  # output$gganimate_map <- renderPlot({
-  #   anim_plot <- ggplot(data = fire_animate) +
-  #     `(data = ca_border, color = `"grey80") +``
-  #     geom_sf(data = fire_animat```e, aes(fill = decade, color = decade), alpha = 0.8) +
-  #     theme_classic() +
-  #     theme_map() +
-  #     labs(t`qq1`      ease_aes("linear") +
-  #     shadow_mark(alpha = 0.3)
-  #   
-  #   animate(anim_plot, fps = 10, end_pause = 30)
-  #   #ssave as gif and call that
-  # })
-  
-  output$gganimate_map <- renderPlot({
+#intro facet wrap graph
+  output$fire_facet_graph <- renderPlot({
     ggplot() +
       geom_sf(data = ca_border, color = "grey80") +
       geom_sf(data = fire_facet, fill = "red4", color = "red4", alpha = 0.5) +
@@ -551,27 +524,4 @@ server <- function(input, output) {
 
 shinyApp(ui = ui, server = server)
 
-
-##issues
-# # dropped decades for largest size class
-# either mutate fct_relevel or ordered/factor() works to assign levels (even though get the unnamed scalar inpus error using mutate fct_relevel, it still works). but levels show up as unordered numbers in the shiny app bc theyre recognized as factor class, but they appear as their actual names when the class is a character but the levels are unordered
-# fix was to manually enter the size classes
-# if else produces one of the graphs. If if statement produces none. Same if put the if statement in the reactive and the data() in the render
-# ggplot doesnt appear in app
-# error with fire sizes table for lightening: Evaluation error: TopologyException: Input geom 1 is invalid: Ring Self-intersection at or near point -123.72272736189028 41.591593843466249 at -123.72272736189028 41.591593843466249.
-  
-## to do
-# add percentages at top of bars for fire size graph?
-
-
-#sub data
-fire_causes_map_data <- fire_causes %>%
-  filter(fire_cause == "Lightning") %>% 
-  filter(year >2000)
-
-ggplot() +
-  geom_sf(data = ca_border) +
-  geom_sf(data = fire_causes_map_data, aes(fill = fire_cause), color = NA) +
-  theme_map() +
-  scale_fill_discrete(name="Cause")
 
