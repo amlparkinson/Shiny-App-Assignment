@@ -322,9 +322,12 @@ output$area_graph <- renderPlot({
 
 # facet wrap for decades graph
 
+fire_facet <- fire %>% filter(!is.na(decade)) %>% filter(decade != "1890s")
+fire_decade_count <- fire_facet %>% group_by(decade) %>% count()
+
 ggplot() +
   geom_sf(data = ca_border, color = "grey80") +
-  geom_sf(data = fire, fill = "red4", color = "red4", alpha = 0.5) +
+  geom_sf(data = fire_facet, fill = "red4", color = "red4", alpha = 0.5) +
   theme_classic() +
   theme_map () +
   facet_wrap(~decade)

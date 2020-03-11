@@ -68,29 +68,31 @@ Error in points[[1]] : subscript out of bounds
 fire_animate <- fire %>% 
   clean_names() %>%  
   filter(!is.na(year)) %>% 
+  filter(!is.na(decade)) %>% 
   mutate(year = as.numeric(year)) %>% 
   #filter(year >= 1990) %>% 
   #filter(year <= 1997) %>% 
-  filter(year != 1930, 1931, 1985, 1986, 1998, ,1999) %>% 
+  filter(year != 1930, 1931, 1985, 1985, 1986, 1998, 1999) %>% 
   st_as_sf() %>% 
   mutate (fire_name = str_to_title(fire_name))  %>% 
   dplyr::filter (acres > 200)  %>% 
   mutate(year = as.numeric(year)) %>% 
    mutate (decade = case_when(
-    year < 1900 ~ "1890s",
-    year < 1909 ~ "1900s",
-    year < 1919 ~ "1910s",
-    year < 1929 ~ "1920s",
-    year < 1939 ~ "1930s",
-    year < 1949 ~ "1940s",
-    year < 1959 ~ "1950s",
-    year < 1969 ~ "1960s",
-    year < 1979 ~ "1970s",
-    year < 1989 ~ "1980s",
-    year < 1999 ~ "1990s",
-    year < 2009 ~ "2000s",
-    year < 2019 ~ "2010s"
-  ))
+    year < 1900 ~ "1890",
+    year < 1909 ~ "1900",
+    year < 1919 ~ "1910",
+    year < 1929 ~ "1920",
+    year < 1939 ~ "1930",
+    year < 1949 ~ "1940",
+    year < 1959 ~ "1950",
+    year < 1969 ~ "1960",
+    year < 1979 ~ "1970",
+    year < 1989 ~ "1980",
+    year < 1999 ~ "1990",
+    year < 2009 ~ "2000",
+    year < 2019 ~ "2010"
+  )) %>% 
+  mutate(decade = as.numeric(decade))
   
 #year_glue <- str_glue_data(fire_animate2, "Year: {year}")
 
@@ -101,13 +103,15 @@ ggplot(data = fire_animate) +
     theme_map() +
     labs(title = "Year: {round(frame_time,0)}") +
     #labs(subtitle = "Acres Burned: {} ")  +
-    transition_time(year) +
+    transition_time(decade) +
    # transition_states(year) +
     #labs(title = str_glue_data(fire_animate2, "Year: {year}")) +
     ease_aes("linear") +
     shadow_mark(alpha = 0.3)
 
 animate(anim_plot, fps = 10, end_pause = 30)
+
+its just not working. 
 
 ```
 

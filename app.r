@@ -58,6 +58,10 @@ fire <- fire_raw %>%
   #st_simplify(dTolerance = 10) %>% error. converts geometry to empty values :(
   mutate(year = as.numeric(year))
   
+# decades fire map for intro data-----------------------------------------------------------
+
+fire_facet <- fire %>% filter(!is.na(decade)) %>% filter(decade != "1890s")
+fire_decade_count <- fire_facet %>% group_by(decade) %>% count()
 
 # sub data for fire length and season -------------------------------------
 
@@ -295,20 +299,18 @@ ui <- navbarPage(
    theme = shinytheme("united"),
    tabPanel("Fire History",
             h1("Background"),
-           # mainPanel(plotOutput(outputId = "gganimate_map")),
-            p("This App explores trends in fire history for California. There have been over 21,000 recorded fires in that have burned xx acres. Due to technical 
-              difficulties, only fires over 200 acres, which represents 9,584 fires, were included for analysis.
-              
-              Over 38 million acres have burned in California, representing almost 34% of land in the state. "),
+            p("In some places it is a natural and essential component of the ecosystem, however fear of wildfire due to its uncontrollability and the threat it posed to human lives and essential industries, such as timber 
+             industries, resulted in the passage of fire suppression policies in the early 1900s. While these policies were successful in reducing the number of wildfires, they had unintended consequences that have 
+              changed the structure and composition of fire prone ecosystems, such as forests and chaparral. These consequences have created unnaturally dense vegetation which has resulted in larger, more frequent, 
+              and more severe wildfires than historic norms. "),
+            p("This App explores trends in fire history for California. There have been over 21,000 recorded fires from mid 1880s to 2018 that have burned over 38 million acres; this represents 37.6% of land in the state."),
             h1("Data"),
-            p("Data was obtained from the Fire and Resource Assessment Program (FRAP) from CalFire (https://frap.fire.ca.gov/frap-projects/fire-perimeters/). 
-              Data has been collected since 1880s, but there are relatively very few recorded observations from 1880s to the early 1900s. Likely this data set represents 
-              an incomplete record, thus results comparing changes to fire trends from early 1900s should be interpreted with caution.
-              To help with this issue, 1880s-early 1900s data was omitted and in some cases combined to form a larger data set. Additionally, due to incomplete data points, 
-              some analyses include fires than in the dataset. The total number of fires used in an analysis is noted on each page."),
-           h3("Note"),
-           p("In order to display maps, graphs, and conduct calculations in real time, fires less than 200 acres were removed from analysis. Technical difficulties made it difficult to conduct analyses 
-             and greate maps with such a large data set." )),
+            p("Fire perimeter polygons were obtained from the Fire and Resource Assessment Program (FRAP) from CalFire (https://frap.fire.ca.gov/frap-projects/fire-perimeters/).  Data is available from 1880s to 2018, 
+              but there are relatively very few recorded observations from 1880s to the early 1900s. Thus, data from these years do not represent a complete record and comparisons from these years to later years should 
+              be interpreted with caution.   To help with this issue, in some cases data from 1880s-early 1900s was omitted. While there were over 21,000 recorded fires, due to technical difficulties only fires over 200 acres, which represents 9,584 fires, were included for analysis."),
+            p("Recorded data included fire cause, fire start date, fire containment date, fire name, and fire size in acres. However, not every fire had records of all of these data points. Thus, some analyses include less fires 
+              than are in the final dataset. The total number of fires used in an analysis is noted on each page."),
+            mainPanel(plotOutput(outputId = "gganimate_map", height=1000, width=1000)),
    tabPanel("Fire Season and Fire Length",
             h3("Background"),
             p("This page explores trends in fire season and duration that a fire burned, aka fire length. Research has shown that fire season has changed compared to historic norms; fires are starting \
@@ -361,7 +363,7 @@ ui <- navbarPage(
   navbarMenu("Fire Causes",
              tabPanel("All",
                       h3("Background"),
-                      p("Recent large and deadly wildfires caused by powerlines have taken up a lot of time on the news, but the occurances of these large wildfires are realtively 
+                      p("Recent large and deadly wildfires caused by powerlines typically dominate the news cycle, but the occurances of these large wildfires are realtively 
                         rare compared to the hundreds of small wildfires (< 1,000 acres) that occur every year but do not make the news. Therefore, less is known about the causes of smaller fires
                         and overall causes of historic fires and how those have changed over the years."),
                       h3("Data and Methods"),
@@ -415,6 +417,15 @@ server <- function(input, output) {
   #   animate(anim_plot, fps = 10, end_pause = 30)
   #   #ssave as gif and call that
   # })
+  
+  output$gganimate_map <- renderPlot({
+    ggplot() +
+      geom_sf(data = ca_border, color = "grey80") +
+      geom_sf(data = fire_facet, fill = "red4", color = "red4", alpha = 0.5) +
+      theme_classic() +
+      theme_map () +
+      facet_wrap(~decade)
+  })
   
 # output for summary stats of fire season
   output$season_summary_graph <- renderPlot({
@@ -528,18 +539,11 @@ server <- function(input, output) {
     fire_causes_count_sum()
   })
 
-  # output$fire_causes_simplified_graph <- renderPlot({
-  #   if(input$select_count_area == "n") {print(count_plot)}
-  #   else {print(acres_plot)}
-  # })
+  output$fire_causes_simplified_graph <- renderPlot({
+    if(input$select_count_area == "n") {print(count_plot)}
+    else {print(acres_plot)}
+  })
   
-  # fire_simplified_decades <- fire_cause_simplified %>% 
-  #   group_by(fire_cause_simplified, decade) %>% 
-  #   summarise(n = n(),
-  #             decade_acres = sum(acres))
-  # output$fire_simplified_decades_summary <- renderTable({
-  #   fire_simplified_decades()
-  # })
 }
   
 
