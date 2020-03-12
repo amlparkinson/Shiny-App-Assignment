@@ -286,7 +286,7 @@ ui <- navbarPage(
    theme = shinytheme("united"),
    tabPanel("Fire History",
             h1("Background"),
-            p("In some places it is a natural and essential component of the ecosystem, however fear of wildfire due to its uncontrollability and the threat it posed to human lives and essential industries, such as timber 
+            p("In some places fire is a natural and essential component of the ecosystem, however fear of wildfire due to its uncontrollability and the threat it posed to human lives and essential industries, such as timber 
              industries, resulted in the passage of fire suppression policies in the early 1900s. While these policies were successful in reducing the number of wildfires, they had unintended consequences that have 
               changed the structure and composition of fire prone ecosystems, such as forests and chaparral. These consequences have created unnaturally dense vegetation which has resulted in larger, more frequent, 
               and more severe wildfires than historic norms."),
@@ -394,7 +394,7 @@ server <- function(input, output) {
   output$fire_facet_graph <- renderPlot({
     ggplot() +
       geom_sf(data = ca_border, color = "grey80") +
-      geom_sf(data = fire_facet, fill = "red4", color = "red4", alpha = 0.5) +
+      geom_sf(data = fire_facet, fill = "red4", color = "red4") +
       theme_classic() +
       theme_map () +
       facet_wrap(~decade)
