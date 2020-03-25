@@ -119,6 +119,8 @@ notes:
 - transtition_states works too when year is a factor. But doesnt like the title changing
 - couldn't figure out how to tally acres burned
 
+- something VERY VERY wer=ird with the data!!! polygons move around the graph when they just just appear. and some years work correctly alone but when paired with other years get error and gganim wont work. so something is off with the data. even allison was confused
+
 
 
 error: Error in `$<-.data.frame`(`*tmp*`, "id", value = c(1L, 1L, 1L, 1L, 1L,  : 
