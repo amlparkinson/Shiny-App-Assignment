@@ -156,7 +156,7 @@ fire_length_no_outliers <- fire_length %>%
 
 length_no_outliers <- ggplot(fire_length_no_outliers, aes(x = length_of_fires, y = decade)) +
   geom_density_ridges(aes(fill = decade), show.legend = F) +
-  labs(x = 'Length of Fires', y= "") +
+  labs(x = 'Length of Fires (days)', y= "") +
   theme_minimal() +
   scale_x_continuous(expand = c(0,0)) +
   scale_y_discrete(expand = c(0,0))
@@ -294,7 +294,7 @@ ui <- navbarPage(
             h1("Data"),
             p("Fire perimeter polygons were obtained from the Fire and Resource Assessment Program (FRAP) from CalFire (https://frap.fire.ca.gov/frap-projects/fire-perimeters/).  Data is available from 1880s to 2018, 
               but there are relatively very few recorded observations from 1880s to the early 1900s. Thus, data from these years do not represent a complete record and comparisons from these years to later years should 
-              be interpreted with caution.   To help with this issue, in some cases data from 1880s-early 1900s was omitted. While there were over 21,000 recorded fires, due to technical difficulties only fires over 200 acres, 
+              be interpreted with caution.   To help with this issue, in some cases data from 1880s-early 1900s was omitted. While there were over 21,000 recorded fires, for simplicity only fires over 200 acres, 
               which represents 9,584 fires, were included for analysis."),
             p("Recorded data included fire cause, fire start date, fire containment date, fire name, and fire size in acres. However, not every fire had records of all of these data points. Thus, some analyses include less fires 
               than are in the final dataset. The total number of fires used in an analysis is noted on each page."),
@@ -307,12 +307,19 @@ ui <- navbarPage(
               also lengthen the duration of fires as more densely packed, drought stressed vegetation is more flamable and thus easier to spread."),
             h3("Data and Methods"),
             p("Alarm date refers to the day a fire started. This data was used to determine trends in fire season. Data on alarm date was available for
-              2,480 fires (from the 9,584). There was no data on alarm date available pre-1920 and there were Very few fires from the 1920s-mid 1900s that contained this information. To avoid misinterpreting any results, fires from before 1970 were exlcuded from this 
-              analysis."),
+              2,480 fires (from the 9,584). There was no data on alarm date available pre-1920 and there were very few fires from the 1920s-mid 1900s that contained this information. To avoid misinterpreting any results, fires from before 1920 were exlcuded from this 
+              analysis. Additionally, fires from 1920 and 1930s were combined into a single category due to small sample sizes."),
             p("Fire length was calculated by converting date data (mm/dd/yyyy) to day of the year (0-365) format, then subtracting containment 
                date (day the fire was declared contained) from alarm date. A few fires started in one year and ended in another. In this case, the following equation was used: (365 - alarm_date) + containment_date).
-            A few fires had the containment day recorded as before the alarm day, so these were removed as it was assumed these data points were the result of human error. In total 2,477 fires had accurate data for both
+            A few fires had the containment day recorded as before the alarm day, so these were removed as it was assumed these date entries were the result of human error. In total 2,477 fires had accurate data for both
               fire alarm date and containment date."),
+            h3("Results"),
+            p("Fire start dates are highly variable over time. Fires are occuring earlier more frequently, but it was not uncommon for the last fires of the year to occur all the way up to December. However, the end of the fire season is occuring slightly later than 
+              pre-2000s. The fire season has not ended in September since the mid 1990s. On average though, the average fire start date has not changed much with most fires still occuring in mid summer. However, looking at the fourth graph, there does appear to be a 
+              slight shift in the fire season: fire season was variable from the 1920s-1950s, however this could be due to the smaller smaple size, then from 1960s-1990s August was the peak fire season until the 2000s-2010s when the peak fire season shifted to the earlier 
+              summer months of June or July. "),
+            p("In regards to fire length, unexpectedly the dry summer months have the longest fires. According to the data some fires burned for a very long time (over 100 days). This could be due to human error inputing data, but some fires can burn underground for a very long time even after
+              the main aboveground fire was put out. Either way, fires that burned for over 80 days were removed for easier comparison. This showed that from the 1980s, there have been more fires burning longer than historic norms. "),
             sidebarLayout(
               sidebarPanel(pickerInput(inputId = "select_summary_stat",
                                         label = "Select Summary Statistic to Explore",
@@ -329,10 +336,12 @@ ui <- navbarPage(
    tabPanel("Fire Size",
             h3("Background"),
             p("This page explores how fire size has changed over the decades. Since fire suppression policies were enacted, vegetation density was allowed to accumulate for decades. Because of this
-              fire size and severity has increased. Of California's largest wildfires (> 100,000 acres) 40% occurred after 2000 and 89% occurred after 1970. "),
+              fire size and severity has increased."),
             h3("Data and Methods"),
-            p("Size was calculted for each polygon in ArcGIS. Units are in acres. There are few data points available from 1880s-early 1900s, so those should be 
+            p("Fire size was calculted in ArcGIS for each fire scar greater than 200 acres There are few recorded fires available from 1880s-early 1900s, so those should be 
               interpreted with caution."),
+            h3("Results"),
+            p("Fires greater than 10,000 acres have been occuring more frequently in the 2000s and 2010s. Of California's largest wildfires (> 100,000 acres) 40% occurred after 2000 and 89% occurred after 1970."),
             sidebarLayout(
               sidebarPanel(radioButtons(inputId = "select_area",
                                         label = "Select Fire Size (Acres)",
@@ -355,6 +364,9 @@ ui <- navbarPage(
                         and overall causes of historic fires and how those have changed over the years."),
                       h3("Data and Methods"),
                       p("There are 14 categories for causes of wildfires; exlcuding unknown category. There are 4,420 fires with fire causes recorded; 5,116 fires had an unknown cause."),
+                      h3("Results"),
+                      p("It is difficult to draw definitive conclusions from this data as over half of the fires had to be removed because their fire cause was listed as unknown and inclusion of these fires, if their 
+                        cause was known, could change any results. However, fires in the 2000s and 2010s, especially those with less obscure causes like lightning  powerlines, are likely well documented."),
                       sidebarLayout(
                         sidebarPanel(" ",
                                      multiInput(inputId = "check_fire_causes",
@@ -372,9 +384,12 @@ ui <- navbarPage(
                                   tableOutput(outputId = 'fire_causes_table'),
                                   plotOutput('fire_causes_map')))),
              tabPanel("Natural vs Human Caused",
-                      h3("Background"),
-                      p("This page compares fire occurances and acres burned between human caused and natural fires. Natural fires and fires started by lightening or volcanic 
+                      h3("Background and Methods"),
+                      p("This page compares fire occurances and acres burned between human caused and natural fires. Natural fires are fires started by lightening or volcanic 
                         activity. Fires with unknown causes were excluded from this analysis."),
+                      h3("Results"),
+                      p("Annual acres burned is highly variable for both natural and human caused fires. From the early 1900s to the mid 1970s, the number of fires and acres burned remained realitvely low with most caused by humans. 
+                        Starting in the mid 1970s, acres burned and number of fires increased from both natural and human causes but still remained highly variable. In some years, naturally caused fires burned more than human caused fires."),
                       sidebarLayout(
                         sidebarPanel(" ",
                                      radioButtons(inputId = "select_count_area",
@@ -383,7 +398,14 @@ ui <- navbarPage(
                                                               "Annual Acres Burned" = "yearly_acres_burned"))),
                         mainPanel("",
                                   plotOutput(outputId = "fire_causes_simplified_graph"),
-                                  tableOutput(outputId = "fire_simplified_decades_summary")))))
+                                  tableOutput(outputId = "fire_simplified_decades_summary"))))),
+  tabPanel("Author Information",
+           h2("Author"),
+           p("Anne-Marie Parkinson"),
+           h2("Contact Information"),
+           p("aparkinson@bren.ucsb.edu"),
+           h2("Publication Date"),
+           p("December 27, 2020"))
 )
 
 #server --------------------------------------------------------------------
@@ -440,7 +462,7 @@ server <- function(input, output) {
     count() %>% 
     st_drop_geometry() %>% 
     rename("Total Number of Fires" = n) %>% 
-    rename ("Fire Size" = area_categorical)
+    rename ("Fire Size (acres)" = area_categorical)
   
 #table for the total fire sizes
   output$area_sum_table <- renderTable(
@@ -454,7 +476,7 @@ server <- function(input, output) {
   output$size_decades_map <- renderPlot({
     ggplot() +
       geom_sf(data = ca_border, color = "grey80") +
-      geom_sf(data = area_decades_count(), fill = "red4", alpha = 0.8, color = NA) +
+      geom_sf(data = area_decades_count(), aes(fill = decade), alpha = 0.8, color = NA) +
       theme_map()
   })
   
@@ -465,20 +487,22 @@ server <- function(input, output) {
       filter(year >= input$date_fire_causes1[1]) %>%
       filter(year <= input$date_fire_causes1[2]) %>% 
       group_by(fire_cause, year) %>% 
-      count()
+      summarize(acres_count = sum(acres))
   })
   
 # graph for fire causes
   output$fire_causes_graph <- renderPlot({
-    ggplot(data = fire_causes_count(), aes(x = year, y = n)) +
+    ggplot(data = fire_causes_count(), aes(x = year, y = acres_count)) +
       geom_point(aes(color = fire_cause)) +
       geom_line(aes(color = fire_cause)) +
-      labs(x = "\nYear", y = "Number of Occurances\n") +
+      labs(x = "\nYear", y = "Acres Burned\n") +
       theme_minimal() +
       scale_color_discrete(name = "Fire Cause") +
       expand_limits(y = 0) +
-      scale_y_continuous(expand = c(0,0)) + #limits = c(0,max(variable)+10); input$date_fire_causes1[2], max(fire_causes_count$year)
-      scale_x_continuous(expand = c(0,0)) 
+      scale_y_continuous(expand = c(0,0),
+                         label = comma) + #limits = c(0,max(variable)+10); input$date_fire_causes1[2], max(fire_causes_count$year)
+      scale_x_continuous(expand = c(0,0),
+                         lim = c(1880, 2020)) 
   })
 
 # map for fire causes
