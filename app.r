@@ -1,5 +1,7 @@
 # load packages ------------------------------------------------------------
 
+#library(rsconnect)
+
 # General packages
 library(tidyverse)
 library(here)
@@ -548,4 +550,6 @@ server <- function(input, output) {
 
 shinyApp(ui = ui, server = server)
 
+# deploy app ----------------------------------------------------------------
 
+rsconnect::deployApp('C:/Users/amlpa/OneDrive/Bren 2019_2020/Past Classes/ESM 244 Advanced Data Science/Shiny-App-Assignment')

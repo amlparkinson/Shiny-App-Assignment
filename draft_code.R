@@ -298,12 +298,10 @@ fire_size_calc <- fire_size %>%
   
   
   #data frame for the number of fires that occurred per decade grouped by fire size
-  area_decades_count <- reactive({
-    fire_size %>% 
-      filter(area_categorical == input$select_area) %>% 
+  area_decades_count <- fire_size %>% 
       group_by(decade, area_categorical) %>% 
       count()
-  })
+
 
 #graph output for fire size per decade 
 output$area_graph <- renderPlot({
@@ -318,7 +316,10 @@ output$area_graph <- renderPlot({
     theme(plot.margin = unit(c(5,5,5,5), "lines"))
 })
 
-
+ggplot() +
+  geom_sf(data = ca_border, color = "grey80") +
+  geom_sf(data = area_decades_count(), fill = "red4", alpha = 0.8, color = NA) +
+  theme_map()
 
 # facet wrap for decades graph
 
@@ -331,5 +332,4 @@ ggplot() +
   theme_classic() +
   theme_map () +
   facet_wrap(~decade)
-
 
